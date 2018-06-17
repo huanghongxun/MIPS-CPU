@@ -21,28 +21,26 @@
 
 
 module pipeline_mem2wb #(
-    parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5)
-    (
+    parameter ADDR_WIDTH = 32
+)(
     input                       clk,
     input                       rst_n,
     input                       flush,
     input                       stall,
 
-    input                       wb_in,
-    output                      wb_out,
+    input                       reg_wb_in,
+    output reg                  reg_wb_out,
     input      [DATA_WIDTH-1:0] data_in,
-    output reg [DATA_WIDTH-1:0] data_out,
-    input      
+    output reg [DATA_WIDTH-1:0] data_out
     );
 
     always @(posedge clk, negedge rst_n)
     begin
         if (!rst_n)
         begin
-            wb_out = 0;
-            data_out = 0;
+            reg_wb_out <= 0;
+            data_out <= 0;
         end
         else
         begin
@@ -50,14 +48,13 @@ module pipeline_mem2wb #(
             begin
                 if (flush)
                 begin
-                    wb_out = 0;
-                    data_out = 0;
+                    reg_wb_out <= 0;
+                    data_out <= 0;
                 end
                 else
                 begin
-                    wb_out = wb_in;
-                    data_out = data_in;
-                    
+                    reg_wb_out <= reg_wb_in;
+                    data_out <= data_in;
                 end
             end
         end

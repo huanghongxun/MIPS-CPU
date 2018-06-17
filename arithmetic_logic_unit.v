@@ -3,8 +3,8 @@
 // Company: Sun Yat-sen University
 // Engineer: Yuhui Huang
 // 
-// Create Date: 2017/06/12 20:04:40
-// Design Name: Arithmetic Logic Unit
+// Create Date: 2018/06/12 20:04:40
+// Design Name: Arithmetic and Logic Unit
 // Module Name: arithmetic_logic_unit
 // Project Name: CPU
 // Target Devices: Basys3
@@ -52,18 +52,21 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 // WIDTH - register width, 8, 16, 32 or 64
-module arithmetic_logic_unit#(parameter WIDTH = 32)(
-    input [5:0] func,
-    input [WIDTH - 1:0] rs,
-    input [WIDTH - 1:0] rt,
-    output reg [WIDTH - 1:0] rd,
+module arithmetic_logic_unit #(
+    parameter DATA_WIDTH = 32,
+    parameter ALU_OP_WIDTH = 5
+)(
+    input [ALU_OP_WIDTH-1:0] op,
+    input [DATA_WIDTH-1:0] rs,
+    input [DATA_WIDTH-1:0] rt,
+    output reg [DATA_WIDTH-1:0] rd,
     output reg branch
     );
 
-    reg [WIDTH - 1:0] hi = 0, lo = 0;
+    reg [DATA_WIDTH-1:0] hi = 0, lo = 0;
     
     always @*
-        case(func)
+        case(op)
             5'b00000: begin // sll
                 rd = rs << rt;
                 branch = 0;

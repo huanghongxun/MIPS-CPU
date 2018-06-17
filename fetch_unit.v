@@ -4,8 +4,8 @@
 // Engineer: Yuhui Huang
 // 
 // Create Date: 2018/05/24 14:07:49
-// Design Name: Program Counter
-// Module Name: program_counter
+// Design Name: Instruction Fetch Unit
+// Module Name: fetch_unit
 // Project Name: SimpleCPU
 // Target Devices: Basys3
 // Tool Versions: Vivado 2018.1
@@ -20,7 +20,7 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module program_counter(
+module fetch_unit(
     input clk,
     input stall,
     input busy,

@@ -11,75 +11,78 @@
 // Tool Versions: Vivado 2018.1
 // Description: 
 //
-//   physical address:
+//   physical address(width 16, 1 word per addr):
 //   [group index | block index | block offset]
-//         8             3             9
+//         8             3             5
 //
+//   2KB instruction cache
 // 
 // Dependencies: 
 // 
 // Revision:
 // Revision 0.01 - File Created
 // Additional Comments:
-// 
+//     See https://en.wikipedia.org/wiki/CPU_cache
 //////////////////////////////////////////////////////////////////////////////////
 
 
 module inst_cache#(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 20, // main memory address width
+    parameter ADDR_WIDTH = 16, // main memory address width
 
-    parameter BLOCKS_PER_GROUP_WIDTH = 1, // for n-way associative caching
-    parameter BLOCK_OFFSET_WIDTH = 9, // width of address of a block
-    parameter BLOCK_INDEX_WIDTH = 3,
-    parameter GROUP_INDEX_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BYTE_OFFSET_WIDTH, // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
+    parameter ASSO_WIDTH = 1, // for n-way associative caching
+    parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
+    parameter INDEX_WIDTH = 3,
+    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
 )(
     input clk,
     input rst_n,
 
     // request
-    input valid,
     input [ADDR_WIDTH-1:0] addr,
-
-    // data memory transaction
-    input mem_valid_in,
-    input mem_last,
-    input [DATA_WIDTH-1:0] mem_data,
-    output reg mem_valid_out,
-    output reg [ADDR_WIDTH-1:0] mem_addr,
+    input req_op, // 1 if we are requesting data
     
     // outputs
     output ready,
-    output reg valid_out,
-    output reg [DATA_WIDTH-1:] data
+    output reg [DATA_WIDTH-1:0] data,
+    output reg data_valid,
+
+    // BRAM transaction
+    output reg [ADDR_WIDTH-1:0] mem_addr,
+    output reg mem_req_op,
+
+    input [DATA_WIDTH-1:0] mem_read,
+    input mem_read_valid,
+    
+    input mem_last
     );
 
     // constants
-    localparam BLOCKS_PER_GROUP = 1<<BLOCKS_PER_GROUP_WIDTH;
-    localparam BLOCK_OFFSET = 1<<BLOCK_OFFSET_WIDTH;
-    localparam BLOCK_INDEX = 1<<BLOCK_INDEX_WIDTH;
+    localparam ASSOCIATIVITY = 1<<ASSO_WIDTH;
+    localparam BLOCK_SIZE = 1<<BLOCK_OFFSET_WIDTH;
+    localparam BLOCK_INDEX = 1<<INDEX_WIDTH;
 
     // variable
     integer i;
 
     // physical memory address parsing
-    wire [GROUP_INDEX_WIDTH -1:0] group_index  = addr[ADDR_WIDTH-1:BLOCK_INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
-    wire [BLOCK_INDEX_WIDTH -1:0] block_index  = addr[BLOCK_INDEX_WIDTH+BLOCK_OFFSET_WIDTH-1:BLOCK_OFFSET_WIDTH];
+    wire [TAG_WIDTH         -1:0] group_index  = addr[ADDR_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
+    wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH-1:BLOCK_OFFSET_WIDTH];
     wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH-1:0];
-    reg [BLOCKS_PER_GROUP_WIDTH-1:0] location;
+    reg  [ASSO_WIDTH        -1:0] location;
 
     // registers to save operands of synchronization
-    reg [GROUP_INDEX_WIDTH -1:0] group_index_reg;
-    reg [BLOCK_INDEX_WIDTH -1:0] block_index_reg;
-    reg [BLOCK_OFFSET_WIDTH-1:0] block_offset_reg;
-    reg [BLOCK_PER_GROUP_WIDTH-1:0] location;
+    reg  [TAG_WIDTH         -1:0] group_index_reg;
+    reg  [INDEX_WIDTH       -1:0] block_index_reg;
+    reg  [BLOCK_OFFSET_WIDTH-1:0] block_offset_reg;
+    reg  [ASSO_WIDTH        -1:0] location_reg;
 
     reg [BLOCK_OFFSET_WIDTH-1:0] write_cnt; // block offset that we are pulling from memory. We always pull a full block from memory per miss.
 
     // cache storage
-    reg [GROUP_INDEX_WIDTH-1:0] tags[0:(1<<BLOCK_INDEX_WIDTH)-1][0:BLOCKS_PER_GROUP-1];
-    reg [DATA_WIDTH-1:0] blocks[0:(1<<BLOCK_INDEX_WIDTH)-1][0:BLOCKS_PER_GROUP-1][0:BLOCK_OFFSET-1];
-    reg is_valid[0:(1<<BLOCK_INDEX_WIDTH)-1][0:BLOCKS_PER_GROUP-1];
+    reg [TAG_WIDTH-1:0] tags[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1];
+    reg [DATA_WIDTH-1:0] blocks[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1];
+    reg is_valid[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1];
 
     reg [1:0] state;
     reg [1:0] next_state;
@@ -87,11 +90,13 @@ module inst_cache#(
     localparam STATE_READY = 0;
     localparam STATE_MISS = 1;
 
+    assign ready = state == STATE_READY;
+
     // determine which block is bound to the memory requested.
     always @*
     begin
         location <= 'bx;
-        for (i = 0; i < BLOCKS_PER_GROUP; i = i + 1)
+        for (i = 0; i < ASSOCIATIVITY; i = i + 1)
             if (tags[block_index][i] == group_index)
                 location <= i;
     end
@@ -99,20 +104,20 @@ module inst_cache#(
     always @*
     begin
         next_state <= state;
-        valid_out <= 0;
+        data_valid <= 0;
         data <= 'bx;
-        mem_vaild_out <= 0;
+        mem_req_op <= 0;
         mem_addr <= 'bx;
 
         case (state)
             STATE_READY: begin
-                if (valid)
+                if (req_op)
                 begin
                     if (is_valid[block_index][location] && tags[block_index][location] == group_index)
                     begin
-                        valid_out <= 1;
+                        data_valid <= 1;
 
-                        data <= blocks[block_index][location];
+                        data <= blocks[block_index][location][block_offset];
                     end
                     else
                     begin
@@ -125,16 +130,20 @@ module inst_cache#(
                 end
             end
             STATE_MISS: begin
-                mem_valid_out <= 1;
+                // start requesting data operation
+                mem_req_op <= 1;
+
+                // We must figure out that BRAM address format is equal to l1cache here
+                // if your BRAM data width is 8-bit(a byte), you should append 2'b00 to LSB.
                 mem_addr <= {group_index_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}};
 
-                if (mem_valid_in)
+                if (mem_read_valid)
                 begin
                     // .
                     if (write_cnt == block_offset_reg)
                     begin
-                        valid_out <= 1;
-                        data <= mem_data;
+                        data_valid <= 1;
+                        data <= mem_read;
                     end
 
                     // if we have finished transferring data from memory
@@ -180,10 +189,10 @@ module inst_cache#(
                     end
 
                     // If we are pulling data from memory
-                    if (mem_valid_in)
+                    if (mem_read_valid)
                     begin
                         write_cnt <= write_cnt + 1;
-                        blocks[block_index_reg][location_reg][write_cnt] <= mem_data;
+                        blocks[block_index_reg][location_reg][write_cnt] <= mem_read;
                     end
                 end
             endcase

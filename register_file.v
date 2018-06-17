@@ -31,45 +31,35 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module register_file
-    #(parameter SIZE = 32, parameter WIDTH = 32)
-    (clk, ra, rb, a, b, rw, wn, wd);
+module register_file #(
+    parameter SIZE = 32,
+    parameter DATA_WIDTH = 32
+)(
+    input clk,
     
-    localparam W = WIDTH - 1;
-    localparam POW = $clog2(WIDTH); // default 5
-    localparam SZW = $clog2(SIZE); // default 5
-    localparam BYTES = WIDTH / 8;
+    input [REG_ADDR_WIDTH-1:0] ra_addr,
+    input [REG_ADDR_WIDTH-1:0] rb_addr,
     
-    input clk; // clock signal
-    input [SZW - 1:0] ra; // register index of A
-    input [SZW - 1:0] rb; // register index of B
-    output reg [W:0] a = 0; // value of register A
-    output reg [W:0] b = 0; // value of register B
-    input [SZW - 1:0] rw; // register index of C
-    input wn; // enable writing
-    input [W:0] wd; // if wn = 1, value of C will be overriden to wd.
+    output [DATA_WIDTH-1:0] ra_data,
+    output [DATA_WIDTH-1:0] rb_data,
     
-    reg [W:0] registers[0:SIZE - 1];
-    integer i;
+    input rw,
+    input [REG_ADDR_WIDTH-1:0] write_addr,
+    input [DATA_WIDTH-1:0] write_data
+    );
     
-    initial begin
-        for (i = 0; i < 32; i = i + 1)
-        begin
-            if (i == 29) // sp
-                registers[i] = 32'h8002_03FF;
-            else if (i == 31) // ra, return address
-                registers[i] = 32'hDEAD_BEEF;
-            else
-                registers[i] = 0;
-        end
-    end
+    localparam READ = 0;
+    localparam WRITE = 1;
+    
+    reg [DATA_WIDTH-1:0] registers[0:SIZE - 1];
+    
+    assign ra_data = ra_addr == 0 ? 0 : registers[ra_addr];
+    assign rb_data = rb_addr == 0 ? 0 : registers[rb_addr];
     
     always @(posedge clk)
     begin
-        if (wn == 1) // in write mode
-            if (rw != 0) // zero register cannot be written.
-                registers[rw] = wd;
-        a = registers[ra]; // if ra or rb equals to rw, a or b will equal to wd.
-        b = registers[rb];
+        // zero register cannot be written
+        if (rw == WRITE && write_addr != 0)
+            registers[rw] = wd;
     end
 endmodule
