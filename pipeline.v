@@ -42,12 +42,14 @@ module pipeline#(
     input fetch_done,
 
     // decode
-    input decode_rs,
-    input decode_rt,
+    input dec_rs_enable,
+    input [REG_ADDR_WIDTH:0] dec_rs_addr,
+    input dec_rt_enable,
+    input [REG_ADDR_WIDTH:0] dec_rt_addr,
     input decode_branch,
 
     // execute
-    input [REG_ADDR_WIDTH-1:0] exec_dst,
+    input [REG_ADDR_WIDTH:0] exec_dst,
     input exec_mem_enable,
     input exec_wb_reg,
     input exec_branch,
@@ -142,8 +144,8 @@ module pipeline#(
             // we should insert a bubble to wait for data ready.
             // See Solution B: https://en.wikipedia.org/wiki/Classic_RISC_pipeline
             if (exec_wb_reg && exec_mem_enable && (
-                (decode_rs == exec_dst && decode_rs != 0) ||
-                (decode_rt == exec_dst && decode_rt != 0)))
+                (dec_rs_addr == exec_dst && dec_rs_enable) ||
+                (dec_rt_addr == exec_dst && dec_rt_enable)))
             begin
                 decode_stall <= 1;
                 decode_flush <= 1;

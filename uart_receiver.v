@@ -73,7 +73,7 @@ module uart_receiver#(
                 if (shift)
                     rxshiftreg <= {RxD, rxshiftreg[9:1]};
                 if (clear_sample)
-                    sample <= 0
+                    sample <= 0;
                 if (inc_sample)
                     sample <= sample + 1;
                 if (clear_bit)

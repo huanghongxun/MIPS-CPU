@@ -26,6 +26,8 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+`include "defines.v"
+
 module bram_controller#(
 	parameter DATA_WIDTH = 32,
 	parameter ADDR_WIDTH = 16,
@@ -50,9 +52,9 @@ module bram_controller#(
     // BRAM interface
     output reg ena = 0,
     output reg wea = 0,
-    output reg [ADDR_WIDTH-1:0] addra;
-    output reg [DATA_WIDTH-1:0] dina;
-    input reg [DATA_WIDTH-1:0] douta;
+    output reg [ADDR_WIDTH-1:0] addra,
+    output reg [DATA_WIDTH-1:0] dina,
+    input reg [DATA_WIDTH-1:0] douta
     );
 
     // constants
@@ -64,9 +66,6 @@ module bram_controller#(
     localparam STATE_WRITE0 = 3;
     localparam STATE_WRITE1 = 4;
     localparam STATE_WAIT = 5;
-
-    localparam READ = 0;
-    localparam WRITE = 1;
 
     // variables
     reg [2:0] state, next_state;
@@ -108,16 +107,16 @@ module bram_controller#(
                     ena <= 0;
                     if (req_op)
                     begin
-                        if (rw == WRITE)
+                        if (rw == `MEM_WRITE)
                             state <= STATE_WRITE0;
-                        else if (rw == READ)
+                        else if (rw == `MEM_READ)
                             state <= STATE_READ0;
                     end
                 end
                 STATE_READ0: begin // prepare for reading data from memory
                     cnt <= 0;
                     ena <= 1;
-                    wea <= READ;
+                    wea <= `MEM_READ;
                     addra <= addr;
                     state <= STATE_READ1;
                 end
@@ -140,7 +139,7 @@ module bram_controller#(
                 STATE_WRITE0: begin // prepare for writing data to memory
                     cnt <= 0;
                     ena <= 1;
-                    wea <= WRITE;
+                    wea <= `MEM_WRITE;
                     addra <= addr;
                     // We write data in advance since
                     // writing memory is operated next clock period

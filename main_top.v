@@ -19,6 +19,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+`include "defines.v"
 
 module main_top(
     input clk, // 100MHz clock signal
@@ -43,6 +44,13 @@ module main_top(
     output QspiSCK
     );
 
+    localparam DATA_WIDTH = 32;
+    localparam ADDR_WIDTH = 16;
+    localparam REG_ADDR_WIDTH = 5;
+    localparam ALU_OP_WIDTH = 5;
+    localparam FREE_LIST_WIDTH = 3;
+    localparam CHECKPOINT_WIDTH = 2;
+
     // Block memory generator
 
     wire bram_ena;
@@ -57,13 +65,6 @@ module main_top(
                               .addra(bram_addra),
                               .dina(bram_dina),
                               .douta(bram_douta));
-
-    localparam DATA_WIDTH = 32;
-    localparam ADDR_WIDTH = 16;
-    localparam REG_ADDR_WIDTH = 5;
-    localparam ALU_OP_WIDTH = 5;
-    localparam FREE_LIST_WIDTH = 3;
-    localparam CHECKPOINT_WIDTH = 2;
     
     wire rst_n = sw[15];
 
@@ -71,118 +72,27 @@ module main_top(
     wire fetch_rw;
     wire [ADDR_WIDTH-1:0] fetch_write;
     wire [ADDR_WIDTH-1:0] fetch_pc;
-    
-    fetch_unit fetch(.clk(clk),
-                     .rst_n(rst_n),
-                     .stall(pipe_fetch_stall),
-                     
-                     .rw(fetch_rw),
-                     .write(fetch_write),
-                     
-                     .pc(fetch_pc));
 
     wire imem_ready;
     wire [DATA_WIDTH-1:0] imem_data;
     wire imem_data_valid;
 
-    inst_cache#(.DATA_WIDTH(DATA_WIDTH),
-                .ADDR_WIDTH(ADDR_WIDTH))
-                icache(.clk(clk),
-                       .rst_n(rst_n),
-
-                       // request
-                       .addr(fetch_pc),
-                       .req_op(flashloader_done),
-
-                       .ready(imem_ready),
-                       .data(imem_data),
-                       .data_valid(imem_data_valid),
-                       
-                       .mem_addr(memctrl_imem_addr),
-                       .mem_req_op(memctrl_imem_req_op),
-                       
-                       .mem_read(memctrl_imem_read),
-                       .mem_read_valid(memctrl_imem_read_valid),
-                       .mem_last(memctrl_imem_last));
+    // fetch2dec
 
     wire pipe_fetch_flush;
     wire pipe_decode_stall;
     wire dec_bubble;
 
-    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH),
-                         .ADDR_WIDTH(ADDR_WIDTH))
-                    pfd(.clk(clk),
-                        .rst_n(rst_n),
-                        .flush(pipe_fetch_flush),
-                        .stall(pipe_decode_stall),
-                        
-                        .pc_in(fetch_pc),
-                        .pc_out(dec_pc),
-                        .inst_in(imem_data),
-                        .inst_out(dec_inst),
-                        .bubble_in(imem_data_valid),
-                        .bubble_out(dec_bubble));
-
     wire [ADDR_WIDTH-1:0] dec_pc;
     wire [DATA_WIDTH-1:0] dec_inst;
     wire [ALU_OP_WIDTH-1:0] dec_alu_op;
+    wire dec_alu_en;
     wire dec_b_ctrl;
     wire [DATA_WIDTH-1:0] dec_imm;
     wire dec_wb_src;
     wire dec_wb_reg;
 
-    localparam JMP_REG = 2;
-    localparam JMP = 1;
-    localparam JMP_N = 0;
-                            
-    decoder #(.DATA_WIDTH(DATA_WIDTH),
-              .ADDR_WIDTH(ADDR_WIDTH),
-              .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
-              .ALU_OP_WIDTH(ALU_OP_WIDTH))
-                decode(.pc(dec_pc),
-                        .inst(dec_inst),
-                        .op(decoder_op),
-                        .rs(dec_rs_addr),
-                        .rt(dec_rt_addr),
-                        .rd(dec_rd_addr),
-                        .imm(decoder_imm),
-                        .func(dec_alu_op),
-                        .addr(dec_addr),
-                        .b_ctrl(dec_b_ctrl),
-                        .mem_width(dec_mem_width),
-                        .mem_rw(dec_mem_rw),
-                        .mem_enable(dec_mem_enable),
-                        .sign_extend(dec_sign_extend),
-                        .wb_src(dec_wb_src),
-                        .wb_reg(dec_wb_reg),
-                        .jump(dec_jump),
-                        .branch(dec_branch));
-                          
-    regfile_renaming #(.DATA_WIDTH(DATA_WIDTH),
-                       .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
-                       .FREE_LIST_WIDTH(FREE_LIST_WIDTH),
-                       .CHECKPOINT_WIDTH(CHECKPOINT_WIDTH))
-                    regfile(.clk(clk),
-                            .rst_n(rst_n),
-                            .stall_in(pipe_decode_stall),
-
-                            .virtual_rs_addr(dec_rs_addr),
-                            .virtual_rs_data(dec_rs_data)
-                            .virtual_rt_addr(dec_rt_addr),
-                            .virtual_rt_data(dec_rt_data),
-                            .dec_rw(dec_rw),
-                            .virtual_rd_addr(dec_rd_addr),
-
-                            .create_map_checkpoint()
-
-                            .physical_rs_addr(dec_prs_addr),
-                            .physical_rt_addr(dec_prt_addr),
-                            .physical_rd_addr(dec_prd_addr),
-
-                            .active_list_index(dec_active_list_index),
-                            .checkpoint(dec_checkpoint),
-                            
-                            .stall_out(regfile_stall));
+    // dec2exec
 
     wire pipe_decode_flush;
     wire pipe_exec_stall;
@@ -204,6 +114,152 @@ module main_top(
     wire [DATA_WIDTH-1:0] alu_rt;
     wire [DATA_WIDTH-1:0] alu_rd;
 
+    // exec2mem
+
+    wire pipe_exec_flush;
+    wire pipe_mem_stall;
+
+    wire [DATA_WIDTH-1:0] dmem_res;
+    wire [DATA_WIDTH-1:0] dmem_mem_write;
+    wire [DATA_WIDTH-1:0] dmem_write;
+    wire dmem_req_op;
+    wire dmem_mem_width;
+    wire dmem_sign_extend;
+    wire dmem_mem_rw;
+    wire dmem_wb_src;
+    wire dmem_wb_reg;
+    wire dmem_done;
+    
+    // ram
+
+    wire [ADDR_WIDTH-1:0] ram_addr;
+    wire ram_req_op;
+    wire ram_rw;
+    wire [DATA_WIDTH-1:0] ram_write;
+    wire ram_write_req_input;
+    wire [DATA_WIDTH-1:0] ram_read;
+    wire ram_read_valid;
+    wire ram_last;
+
+    // memctrl
+
+    wire [ADDR_WIDTH-1:0] memctrl_imem_addr;
+    wire memctrl_imem_req_op;
+    wire [DATA_WIDTH-1:0] memctrl_imem_read;
+    wire memctrl_imem_read_valid;
+    wire memctrl_imem_last;
+
+    wire [ADDR_WIDTH-1:0] memctrl_dmem_addr;
+    wire memctrl_dmem_req_op;
+    wire memctrl_dmem_rw;
+    wire [DATA_WIDTH-1:0] memctrl_dmem_write;
+    wire memctrl_dmem_req_data;
+    wire [DATA_WIDTH-1:0] memctrl_dmem_read;
+    wire memctrl_dmem_read_valid;
+    wire memctrl_dmem_last;
+
+    wire [ADDR_WIDTH-1:0] memctrl_flash_addr;
+    wire memctrl_flash_req_op;
+    wire [DATA_WIDTH-1:0] memctrl_flash_write;
+    wire memctrl_flash_req_data;
+    wire memctrl_flash_last;
+    
+    fetch_unit fetch(.clk(clk),
+                     .rst_n(rst_n),
+                     .stall(pipe_fetch_stall),
+                     
+                     .rw(fetch_rw),
+                     .write(fetch_write),
+                     
+                     .pc(fetch_pc));
+
+    inst_cache#(.DATA_WIDTH(DATA_WIDTH),
+                .ADDR_WIDTH(ADDR_WIDTH))
+                icache(.clk(clk),
+                       .rst_n(rst_n),
+
+                       // request
+                       .addr(fetch_pc),
+                       .req_op(flashloader_done),
+
+                       .ready(imem_ready),
+                       .data(imem_data),
+                       .data_valid(imem_data_valid),
+                       
+                       .mem_addr(memctrl_imem_addr),
+                       .mem_req_op(memctrl_imem_req_op),
+                       
+                       .mem_read(memctrl_imem_read),
+                       .mem_read_valid(memctrl_imem_read_valid),
+                       .mem_last(memctrl_imem_last));
+
+    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH),
+                         .ADDR_WIDTH(ADDR_WIDTH))
+                    pfd(.clk(clk),
+                        .rst_n(rst_n),
+                        .flush(pipe_fetch_flush),
+                        .stall(pipe_decode_stall),
+                        
+                        .pc_in(fetch_pc),
+                        .pc_out(dec_pc),
+                        .inst_in(imem_data),
+                        .inst_out(dec_inst),
+                        .bubble_in(imem_data_valid),
+                        .bubble_out(dec_bubble));
+                            
+    decoder #(.DATA_WIDTH(DATA_WIDTH),
+              .ADDR_WIDTH(ADDR_WIDTH),
+              .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
+              .ALU_OP_WIDTH(ALU_OP_WIDTH))
+                decode(.pc(dec_pc),
+                        .inst(dec_inst),
+                        .op(decoder_op),
+                        .rs(dec_rs_addr),
+                        .rt(dec_rt_addr),
+                        .rd(dec_virtual_write_addr),
+                        .imm(decoder_imm),
+                        .func(dec_alu_op),
+                        .addr(dec_addr),
+                        .uses_alu(dec_alu_en),
+                        .b_ctrl(dec_b_ctrl),
+                        .mem_width(dec_mem_width),
+                        .mem_rw(dec_mem_rw),
+                        .mem_enable(dec_mem_enable),
+                        .sign_extend(dec_sign_extend),
+                        .wb_src(dec_wb_src),
+                        .wb_reg(dec_wb_reg),
+                        .jump(dec_jump),
+                        .branch(dec_branch));
+                          
+
+    register_file #(.DATA_WIDTH(DATA_WIDTH),
+                       .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
+                       .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
+                    regfile(.clk(clk),
+                            .rst_n(rst_n),
+                            .stall_in(pipe_decode_stall),
+
+                            .virtual_rs_addr(dec_rs_addr),
+                            .virtual_rs_data(dec_rs_data),
+                            .virtual_rt_addr(dec_rt_addr),
+                            .virtual_rt_data(dec_rt_data),
+                            .dec_rw(dec_rw),
+                            .virtual_rd_addr(dec_rd_addr),
+                            
+                            .mem_write_enable(wb_wb_reg && !pipe_wb_flush),
+                            .wb_physical_write_addr(wb_physical_write_addr),
+                            .wb_physical_write_data(wb_write),
+                            .wb_virtual_write_addr(wb_virtual_write_addr),
+                            .wb_active_list_index(wb_active_list_index),
+
+                            .physical_rs_addr(dec_prs_addr),
+                            .physical_rt_addr(dec_prt_addr),
+                            .physical_rd_addr(dec_physical_write_addr),
+
+                            .active_list_index(dec_active_list_index),
+                            
+                            .stall_out(regfile_stall));
+
     pipeline_dec2exec #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),
                         .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
@@ -217,11 +273,13 @@ module main_top(
                         .pc_out(exec_pc),
                         .inst_in(dec_inst),
                         .inst_out(exec_inst),
-                        .alu_op_in(dec_alu_op)
+                        .alu_op_in(dec_alu_op),
                         .alu_op_out(alu_op),
-                        .alu_rs_in(exec_),
+                        .alu_en_in(dec_alu_en),
+                        .alu_en_out(exec_alu_en),
+                        .alu_rs_in(forwarded_rs_data),
                         .alu_rs_out(alu_rs),
-                        .alu_rt_in(dec_b_ctrl ? dec_imm : alu_rt),
+                        .alu_rt_in(dec_b_ctrl ? dec_imm : forwarded_rt_data),
                         .alu_rt_out(alu_rt),
                         .mem_width_in(dec_mem_width),
                         .mem_width_out(exec_mem_width),
@@ -237,31 +295,24 @@ module main_top(
                         .wb_reg_out(exec_wb_reg),
                         .branch_in(dec_branch),
                         .branch_out(exec_branch),
-                        .branch_target_in(dec_jump == JMP_REG ?  : dec_addr),
-                        .branch_target_out(exec_branch_target));
+                        .branch_target_in(dec_jump == `JMP_REG ? forwarded_rs_data[ADDR_WIDTH-1:0] : dec_addr),
+                        .branch_target_out(exec_branch_target),
+                        .virtual_write_addr_in(dec_virtual_write_addr),
+                        .virtual_write_addr_out(exec_virtual_write_addr),
+                        .physical_write_addr_in(dec_physical_write_addr),
+                        .physical_write_addr_out(exec_physical_write_addr),
+                        .active_list_index_in(dec_active_list_index),
+                        .active_list_index_out(exec_active_list_index));
                          
     arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH),
                             .ALU_OP_WIDTH(ALU_OP_WIDTH))
                     alu(.pc(exec_pc),
+                        .en(exec_alu_en),
                         .op(alu_op),
                         .rs(alu_rs),
                         .rt(alu_rt),
                         .rd(alu_rd),
                         .branch(alu_branch));
-
-    wire pipe_exec_flush;
-    wire pipe_mem_stall;
-
-    wire [DATA_WIDTH-1:0] dmem_res;
-    wire [DATA_WIDTH-1:0] dmem_mem_write;
-    wire [DATA_WIDTH-1:0] dmem_write;
-    wire dmem_req_op;
-    wire dmem_mem_width;
-    wire dmem_sign_extend;
-    wire dmem_mem_rw;
-    wire dmem_wb_src;
-    wire dmem_wb_reg;
-    wire dmem_done;
 
     pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),
@@ -290,33 +341,29 @@ module main_top(
                         .wb_src_in(exec_wb_src),
                         .wb_src_out(dmem_wb_src),
                         .wb_reg_in(exec_wb_reg),
-                        .wb_reg_out(dmem_wb_reg));
-
-    localparam WB_ALU = 1;
-    localparam WB_MEM = 0;
+                        .wb_reg_out(dmem_wb_reg),
+                        .branch(exec_branch),
+                        .branch(dmem_branch),
+                        .virtual_write_addr_in(exec_virtual_write_addr),
+                        .virtual_write_addr_out(dmem_virtual_write_addr),
+                        .physical_write_addr_in(exec_physical_write_addr),
+                        .physical_write_addr_out(dmem_physical_write_addr),
+                        .active_list_index_in(exec_active_list_index),
+                        .active_list_index_out(dmem_active_list_index));
 
     always @*
     begin
-        if (dmem_wb_src == WB_ALU)
+        if (dmem_wb_src == `WB_ALU)
         begin
             dmem_write <= dmem_res;
             dmem_done <= 1;
         end
-        else if (dmem_wb_src == WB_MEM)
+        else if (dmem_wb_src == `WB_MEM)
         begin
             dmem_write <= dmem_mem_read;
             dmem_done <= dmem_mem_read_valid;
         end
     end
-
-    wire [ADDR_WIDTH-1:0] ram_addr;
-    wire ram_req_op;
-    wire ram_rw;
-    wire [DATA_WIDTH-1:0] ram_write;
-    wire ram_write_req_input;
-    wire [DATA_WIDTH-1:0] ram_read;
-    wire ram_read_valid;
-    wire ram_last;
 
     bram_controller ram(.clk(clk),
                         .rst_n(rst_n),
@@ -372,27 +419,6 @@ module main_top(
                        
                        .mem_last(memctrl_dmem_last));
 
-    wire [ADDR_WIDTH-1:0] memctrl_imem_addr;
-    wire memctrl_imem_req_op;
-    wire [DATA_WIDTH-1:0] memctrl_imem_read;
-    wire memctrl_imem_read_valid;
-    wire memctrl_imem_last;
-
-    wire [ADDR_WIDTH-1:0] memctrl_dmem_addr;
-    wire memctrl_dmem_req_op;
-    wire memctrl_dmem_rw;
-    wire [DATA_WIDTH-1:0] memctrl_dmem_write;
-    wire memctrl_dmem_req_data;
-    wire [DATA_WIDTH-1:0] memctrl_dmem_read;
-    wire memctrl_dmem_read_valid;
-    wire memctrl_dmem_last;
-
-    wire [ADDR_WIDTH-1:0] memctrl_flash_addr;
-    wire memctrl_flash_req_op;
-    wire [DATA_WIDTH-1:0] memctrl_flash_write;
-    wire memctrl_flash_req_data;
-    wire memctrl_flash_last;
-
     memory_controller #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH))
                     memctrl(.clk(clk),
@@ -443,13 +469,44 @@ module main_top(
                       .ADDR_WIDTH(ADDR_WIDTH))
                     pmw(.clk(clk),
                         .rst_n(rst_n),
-                        .flush(),
-                        .stall()
+                        .flush(pipe_wb_flush),
+                        .stall(pipe_wb_stall),
                         
-                        .reg_wb_in(),
-                        .reg_wb_out(),
-                        .data_in(),
-                        .data_out());
+                        .wb_reg_in(dmem_wb_reg),
+                        .wb_reg_out(wb_wb_reg),
+                        .wb_data_in(dmem_write),
+                        .wb_data_out(wb_write),
+                        .virtual_write_addr_in(dmem_virtual_write_addr),
+                        .virtual_write_addr_out(wb_virtual_write_addr),
+                        .physical_write_addr_in(dmem_physical_write_addr),
+                        .physical_write_addr_out(wb_physical_write_addr),
+                        .active_list_index_in(dmem_active_list_index),
+                        .active_list_index_out(wb_active_list_index));
+
+    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH),
+                      .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+                forward(.dec_rs_enable(dec_rs_enable),
+                        .dec_rs_addr(dec_prs_addr),
+                        .dec_rs_data(dec_rs_data),
+                        .dec_rt_enable(dec_rt_enable),
+                        .dec_rt_addr(dec_prt_addr),
+                        .dec_rt_data(dec_rt_data),
+
+                        .exec_wb_reg(exec_wb_reg),
+                        .exec_uses_alu(exec_alu_en),
+                        .exec_write_addr(exec_physical_write_addr),
+                        .exec_write_data(alu_rd),
+                        
+                        .mem_wb_reg(mem_wb_reg),
+                        .mem_write_addr(dmem_physical_write_addr),
+                        .mem_write_data(dmem_write),
+
+                        .wb_wb_reg(wb_wb_reg),
+                        .wb_write_addr(dec_physical_write_addr),
+                        .wb_write(wb_write),
+
+                        .dec_rs_override(forwarded_rs_data),
+                        .dec_rt_override(forwarded_rt_data));
     
     pipeline #(.DATA_WIDTH(DATA_WIDTH),
                .ADDR_WIDTH(ADDR_WIDTH),
@@ -461,8 +518,12 @@ module main_top(
                     .done(done),
                     
                     .fetch_done(imem_data_valid),
+
+                    .dec_rs_addr(dec_prs_addr),
+                    .dec_rt_addr(dec_prt_addr),
+                    .decode_branch(dec_branch),
                     
-                    .exec_dst(exec_),
+                    .exec_dst(exec_physical_write_addr),
                     .exec_mem_enable(exec_mem_enable),
                     .exec_wb_reg(exec_wb_reg),
                     .exec_branch(exec_branch),

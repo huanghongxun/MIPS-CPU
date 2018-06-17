@@ -25,6 +25,7 @@
 // 
 //////////////////////////////////////////////////////////////////////////////////
 
+`include "defines.v"
 
 module memory_controller#(
     parameter DATA_WIDTH = 32,
@@ -78,9 +79,6 @@ module memory_controller#(
     input mem_last
     );
 
-    localparam MEM_READ = 0;
-    localparam MEM_WRITE = 1;
-
     localparam STATE_READY = 0;
     localparam STATE_INST_MEM = 1;
     localparam STATE_DATA_MEM = 2;
@@ -104,7 +102,7 @@ module memory_controller#(
         flash_last <= 0;
         mem_req_op <= 0;
         mem_addr <= 'bx;
-        mem_rw <= MEM_READ;
+        mem_rw <= `MEM_READ;
         mem_write <= 'bx;
 
         case (state)
@@ -114,7 +112,7 @@ module memory_controller#(
                 mem_req_op <= 1;
                 mem_addr <= imem_addr;
                 // instruction cache only reads data from memory
-                mem_rw <= MEM_READ;
+                mem_rw <= `MEM_READ;
 
                 imem_read_valid <= mem_read_valid;
                 imem_last <= mem_last;
@@ -135,7 +133,7 @@ module memory_controller#(
                 mem_req_op <= 1;
                 mem_addr <= flash_addr;
                 // flash memory only writes data from memory here.
-                mem_rw <= MEM_WRITE;
+                mem_rw <= `MEM_WRITE;
                 mem_write <= flash_write;
 
                 flash_req_data <= mem_write_req_input;

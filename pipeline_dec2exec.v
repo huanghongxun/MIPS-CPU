@@ -56,7 +56,13 @@ module pipeline_dec2exec #(
     input                       branch_in,
     output reg                  branch_out,
     input      [ADDR_WIDTH-1:0] branch_target_in,
-    output reg [ADDR_WIDTH-1:0] branch_target_out
+    output reg [ADDR_WIDTH-1:0] branch_target_out,
+    input      [REG_ADDR_WIDTH-1:0] virtual_write_addr_in,
+    output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
+    input      [REG_ADDR_WIDTH-1:0] physical_write_addr_in,
+    output reg [REG_ADDR_WIDTH-1:0] physical_write_addr_out,
+    input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
+    output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
     );
 
     always @(posedge clk, negedge rst_n)
@@ -76,6 +82,9 @@ module pipeline_dec2exec #(
             wb_reg_out <= 0;
             branch_out <= 0;
             branch_target_out <= 0;
+            virtual_write_addr_out <= 0;
+            physical_write_addr_out <= 0;
+            active_list_index_out <= 0;
         end
         else
         begin
@@ -96,6 +105,9 @@ module pipeline_dec2exec #(
                     wb_reg_out <= 0;
                     branch_out <= 0;
                     branch_target_out <= 0;
+                    virtual_write_addr_out <= 0;
+                    physical_write_addr_out <= 0;
+                    active_list_index_out <= 0;
                 end
                 else
                 begin
@@ -112,6 +124,9 @@ module pipeline_dec2exec #(
                     wb_reg_out <= wb_reg_in;
                     branch_out <= branch_in;
                     branch_target_out <= branch_target_in;
+                    virtual_write_addr_out <= virtual_write_addr_in;
+                    physical_write_addr_out <= physical_write_addr_in;
+                    active_list_index_out <= active_list_index_in;
                 end
             end
         end

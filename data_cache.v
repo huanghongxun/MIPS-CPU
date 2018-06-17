@@ -36,7 +36,7 @@ module data_cache#(
     parameter ASSO_WIDTH = 1, // for n-way associative caching
     parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
     parameter INDEX_WIDTH = 3,
-    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH, // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
+    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
 )(
     input clk,
     input rst_n,
@@ -69,7 +69,7 @@ module data_cache#(
     
     input mem_last
     );
-
+/*
     // constants
     localparam ASSOCIATIVITY = 1<<ASSO_WIDTH;
     localparam BLOCK_SIZE = 1<<BLOCK_OFFSET_WIDTH;
@@ -139,5 +139,5 @@ module data_cache#(
                 end
             endcase
         end
-    end
+    end*/
 endmodule

@@ -22,25 +22,37 @@
 
 module pipeline_mem2wb #(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 32
+    parameter ADDR_WIDTH = 18,
+    parameter REG_ADDR_WIDTH = 5,
+    parameter FREE_LIST_WIDTH = 3
 )(
-    input                       clk,
-    input                       rst_n,
-    input                       flush,
-    input                       stall,
+    input      clk,
+    input      rst_n,
+    input      flush,
+    input      stall,
 
-    input                       reg_wb_in,
-    output reg                  reg_wb_out,
-    input      [DATA_WIDTH-1:0] data_in,
-    output reg [DATA_WIDTH-1:0] data_out
+    input      wb_reg_in,
+    output reg wb_reg_out,
+    input      [DATA_WIDTH-1:0] wb_data_in,
+    output reg [DATA_WIDTH-1:0] wb_data_out,
+    input      [REG_ADDR_WIDTH-1:0] virtual_write_addr_in,
+    output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
+    input      [REG_ADDR_WIDTH-1:0] physical_write_addr_in,
+    output reg [REG_ADDR_WIDTH-1:0] physical_write_addr_out,
+    input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
+    output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
+
     );
 
     always @(posedge clk, negedge rst_n)
     begin
         if (!rst_n)
         begin
-            reg_wb_out <= 0;
-            data_out <= 0;
+            wb_reg_out <= 0;
+            wb_data_out <= 0;
+            virtual_write_addr_out <= 0;
+            physical_write_addr_out <= 0;
+            active_list_index_out <= 0;
         end
         else
         begin
@@ -48,13 +60,19 @@ module pipeline_mem2wb #(
             begin
                 if (flush)
                 begin
-                    reg_wb_out <= 0;
-                    data_out <= 0;
+                    wb_reg_out <= 0;
+                    wb_data_out <= 0;
+                    virtual_write_addr_out <= 0;
+                    physical_write_addr_out <= 0;
+                    active_list_index_out <= 0;
                 end
                 else
                 begin
-                    reg_wb_out <= reg_wb_in;
-                    data_out <= data_in;
+                    wb_reg_out <= wb_reg_in;
+                    wb_data_out <= wb_data_in;
+                    virtual_write_addr_out <= virtual_write_addr_in;
+                    physical_write_addr_out <= physical_write_addr_in;
+                    active_list_index_out <= active_list_index_in;
                 end
             end
         end

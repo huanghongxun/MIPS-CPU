@@ -23,8 +23,9 @@
 module pipeline_exec2mem #(
     parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5)
-    (
+    parameter REG_ADDR_WIDTH = 5,
+    parameter FREE_LIST_WIDTH = 3
+)(
     input clk,
     input rst_n,
     input flush,
@@ -47,9 +48,17 @@ module pipeline_exec2mem #(
     input      [DATA_WIDTH-1:0] mem_write_in,
     output reg [DATA_WIDTH-1:0] mem_write_out,
     input                       wb_src_in,
-    output reg                  wb_src_out
+    output reg                  wb_src_out,
     input                       wb_reg_in,
-    output reg                  wb_reg_out
+    output reg                  wb_reg_out,
+    input                       branch_in,
+    output reg                  branch_out,
+    input                           virtual_write_addr_in,
+    output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
+    input      [REG_ADDR_WIDTH:0] physical_write_addr_in,
+    output reg [REG_ADDR_WIDTH:0] physical_write_addr_out,
+    input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
+    output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
     );
 
     always @(posedge clk, negedge rst_n)
@@ -66,6 +75,10 @@ module pipeline_exec2mem #(
             mem_write_out <= 0;
             wb_src_out <= 0;
             wb_reg_out <= 0;
+            branch_out <= 0;
+            virtual_write_addr_out <= 0;
+            physical_write_addr_out <= 0;
+            active_list_index_out <= 0;
         end
         else
         begin
@@ -83,6 +96,10 @@ module pipeline_exec2mem #(
                     mem_write_out <= 0;
                     wb_src_out <= 0;
                     wb_reg_out <= 0;
+                    branch_out <= 0;
+                    virtual_write_addr_out <= 0;
+                    physical_write_addr_out <= 0;
+                    active_list_index_out <= 0;
                 end
                 else
                 begin
@@ -96,6 +113,10 @@ module pipeline_exec2mem #(
                     mem_write_out <= mem_write_in;
                     wb_src_out <= wb_src_in;
                     wb_reg_out <= wb_reg_in;
+                    branch_out <= branch_in;
+                    virtual_write_addr_out <= virtual_write_addr_in;
+                    physical_write_addr_out <= physical_write_addr_in;
+                    active_list_index_out <= active_list_index_in;
                 end
             end
         end
