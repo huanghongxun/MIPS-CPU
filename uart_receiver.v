@@ -26,12 +26,13 @@ module uart_receiver#(
     input clk, // 100MHz System clock
     input rst_n, //input reset 
     input RxD, // input receving data line
-    output [7:0] data // output for 8 bits data
+    output [7:0] data, // output for 8 bits data
+    output reg data_last
     );
 
     // constants
     localparam STATE_READY = 0;
-    localparam STATE_RECEIVING = 0;
+    localparam STATE_RECEIVING = 1;
 
     localparam DATA_WIDTH = 8;
     localparam TRAN_WIDTH = DATA_WIDTH + 2; // 1 start, 8 data, 1 stop
@@ -46,15 +47,15 @@ module uart_receiver#(
     reg shift; // shift signal to trigger shifting data
     reg state, next_state; // initial state and next state variable
     reg [3:0] bit; // 4 bits counter to count up to 9 for UART receiving
-    reg [1:0] samplecounter; // 2 bits sample counter to count up to 4 for oversampling
+    reg [1:0] sample; // 2 bits sample counter to count up to 4 for oversampling
     reg [13:0] counter; // 14 bits counter to count the baud rate
-    reg [TRAN_WIDTH-1:0] rxshiftreg; // bit shifting register
-    reg clear_bit, inc_bit, inc_sampleclear_sample; //clear or increment the counter
+    reg [TRAN_WIDTH-1:0] cached = 0; // bit shifting register
+    reg clear_bit, inc_bit, inc_sample, clear_sample; //clear or increment the counter
 
-    assign RxData = rxshiftreg[8:1]; // assign the RxData from the shiftregister
+    assign data = cached[8:1]; // assign the RxData from the shiftregister
 
     // UART receiver logic
-    always @(posedge clk_100MHz, negedge rst_n)
+    always @(posedge clk, negedge rst_n)
     begin 
         if (!rst_n)
         begin
@@ -62,6 +63,7 @@ module uart_receiver#(
             bit <= 0;
             counter <= 0;
             sample <= 0;
+            cached <= 0;
         end
         else
         begin
@@ -71,7 +73,7 @@ module uart_receiver#(
                 counter <= 0;
                 state <= next_state;
                 if (shift)
-                    rxshiftreg <= {RxD, rxshiftreg[9:1]};
+                    cached <= {RxD, cached[TRAN_WIDTH-1:1]};
                 if (clear_sample)
                     sample <= 0;
                 if (inc_sample)
@@ -93,6 +95,7 @@ module uart_receiver#(
         clear_bit <= 0;
         inc_bit <= 0;
         next_state <= STATE_READY;
+        data_last <= 0;
         case (state)
             STATE_READY: begin
                 if (RxD)
@@ -114,8 +117,9 @@ module uart_receiver#(
                 if (sample == div_sample - 1)
                 begin // if sample counter is 3 as the sample rate used is 3
                     // Since bit have reached div_bit, we have completed receiving this byte.
-                    if (bit == div_bit - 1)
+                    if (bit == TRAN_WIDTH - 1)
                     begin
+                        data_last <= 1;
                         next_state <= STATE_READY;
                     end 
                     inc_bit <= 1; // trigger the increment bit counter if bit counter is not 9

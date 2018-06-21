@@ -20,47 +20,38 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module fetch_unit(
+module fetch_unit #(
+    parameter ADDR_WIDTH = 16,
+    parameter DATA_WIDTH = 32
+)(
     input clk,
+    input rst_n,
     input stall,
-    input busy,
-    output reg [31:0] pc = 32'h8001_FFFC,
-    output reg [2:0] access_size = 0,
-    input jmp, // 1 if J-type instruction is invoked.
-    input [25:0] jmp_addr,
-    input branch,
-    input [15:0] offset
+    
+    input rw,
+    input [ADDR_WIDTH-1:0] write,
+    output reg [ADDR_WIDTH-1:0] pc
     );
 
-    wire [31:0] offset_sign_extended = {{14{offset[15]}}, {offset[15:0]}, 2'b00}; // sign extended offset for I branch instructions.
-    
-    always @(posedge clk)
+    always @(posedge clk, negedge rst_n)
     begin
-        if (stall == 0 && busy == 0)
+        if (!rst_n)
         begin
-            if (jmp != 1 && branch != 1)
-                pc = pc + 4;
-            else if (branch == 1)
-            begin
-                pc = (pc + 4) + offset_sign_extended;
-                $display("PC branch %h", pc);
-            end
-            else if (jmp == 1)
-            begin
-                pc = {pc[31:28], jmp_addr, 2'b00}; // (pc & 32'hf000_0000) + (jmp_addr << 2)
-                $display("PC jump %h", pc);
-            end
-            // no else
-        end // busy or stall
-        else if (jmp == 1)
-        begin
-            pc = {pc[31:28], jmp_addr, 2'b00}; // (pc & 32'hf000_0000) + (jmp_addr << 2)
-            $display("PC jump %h", pc);
+            pc <= 0;
         end
-        else if (branch == 1)
+        else
         begin
-            pc = (pc + 4) + offset_sign_extended;
-            $display("PC branch %h", pc);
+            if (!stall)
+            begin
+                if (rw == `MEM_WRITE)
+                begin
+                    pc <= write;
+                end
+                else
+                begin
+                    pc <= pc + 1;
+                end
+            end
         end
     end
 endmodule

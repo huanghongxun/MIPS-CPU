@@ -37,8 +37,8 @@ module pipeline_mem2wb #(
     output reg [DATA_WIDTH-1:0] wb_data_out,
     input      [REG_ADDR_WIDTH-1:0] virtual_write_addr_in,
     output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
-    input      [REG_ADDR_WIDTH-1:0] physical_write_addr_in,
-    output reg [REG_ADDR_WIDTH-1:0] physical_write_addr_out,
+    input      [REG_ADDR_WIDTH:0] physical_write_addr_in,
+    output reg [REG_ADDR_WIDTH:0] physical_write_addr_out,
     input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
     output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
 

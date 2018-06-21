@@ -43,6 +43,7 @@ module pipeline_fetch2dec #(
         begin
             pc_out <= 0;
             inst_out <= 0;
+            bubble_out <= 0;
         end
         else
         begin

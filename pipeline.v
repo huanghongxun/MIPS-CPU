@@ -34,8 +34,10 @@ module pipeline#(
     input clk,
     input rst_n,
 
-    input flash_loader_done, // if the flashloader has completed operation
+    input external_done, // if the external storage has completed operation
     input done, // if a done signal has been signaled.
+    
+    input regfile_stall,
 
     // ======= Previous Instruction Feedback ========
     // fetch
@@ -49,7 +51,7 @@ module pipeline#(
     input decode_branch,
 
     // execute
-    input [REG_ADDR_WIDTH:0] exec_dst,
+    input [REG_ADDR_WIDTH:0] exec_physical_write_addr,
     input exec_mem_enable,
     input exec_wb_reg,
     input exec_branch,
@@ -85,7 +87,7 @@ module pipeline#(
 
     // ======= Control Hazards ========
     output reg fetch_branch,
-    output reg fetch_branch_target
+    output reg [ADDR_WIDTH-1:0] fetch_branch_target
     );
 
     reg fetch_load;
@@ -94,7 +96,7 @@ module pipeline#(
     reg fetch_flush_control;
     assign fetch_flush = fetch_flush_data || fetch_flush_control;
 
-    wire executing = flash_loader_done && !done;
+    wire executing = external_done && !done;
 
     // ===================
     // Data Hazards
@@ -144,15 +146,15 @@ module pipeline#(
             // we should insert a bubble to wait for data ready.
             // See Solution B: https://en.wikipedia.org/wiki/Classic_RISC_pipeline
             if (exec_wb_reg && exec_mem_enable && (
-                (dec_rs_addr == exec_dst && dec_rs_enable) ||
-                (dec_rt_addr == exec_dst && dec_rt_enable)))
+                (dec_rs_addr == exec_physical_write_addr && dec_rs_enable) ||
+                (dec_rt_addr == exec_physical_write_addr && dec_rt_enable)))
             begin
                 decode_stall <= 1;
                 decode_flush <= 1;
             end
 
             // Stall if next stage is stalling
-            if (exec_stall)
+            if (exec_stall || regfile_stall)
                 decode_stall <= 1;
         end
         else
@@ -264,6 +266,7 @@ module pipeline#(
             fetch_load <= 0;
             fetch_addr <= 'bx;
         end
+        else
         begin
             if (fetch_stall && exec_branch)
             begin

@@ -25,6 +25,7 @@
 //     See https://en.wikipedia.org/wiki/CPU_cache
 //////////////////////////////////////////////////////////////////////////////////
 
+`include "defines.v"
 
 module inst_cache#(
     parameter DATA_WIDTH = 32,
@@ -40,7 +41,7 @@ module inst_cache#(
 
     // request
     input [ADDR_WIDTH-1:0] addr,
-    input req_op, // 1 if we are requesting data
+    input enable, // 1 if we are requesting data
     
     // outputs
     output ready,
@@ -49,7 +50,7 @@ module inst_cache#(
 
     // BRAM transaction
     output reg [ADDR_WIDTH-1:0] mem_addr,
-    output reg mem_req_op,
+    output reg mem_enable,
 
     input [DATA_WIDTH-1:0] mem_read,
     input mem_read_valid,
@@ -58,21 +59,28 @@ module inst_cache#(
     );
 
     // constants
-    localparam ASSOCIATIVITY = 1<<ASSO_WIDTH;
-    localparam BLOCK_SIZE = 1<<BLOCK_OFFSET_WIDTH;
-    localparam BLOCK_INDEX = 1<<INDEX_WIDTH;
+    localparam ASSOCIATIVITY = 1 << ASSO_WIDTH;
+    localparam BLOCK_SIZE = 1 << BLOCK_OFFSET_WIDTH;
+    localparam INDEX_SIZE = 1 << INDEX_WIDTH;
+
+    // states
+    localparam STATE_READY = 0;
+    localparam STATE_MISS = 1;
 
     // variable
-    integer i;
+    integer i, j, k;
+
+    reg [1:0] state;
+    reg [1:0] next_state;
 
     // physical memory address parsing
-    wire [TAG_WIDTH         -1:0] group_index  = addr[ADDR_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
+    wire [TAG_WIDTH         -1:0] tag  = addr[ADDR_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
     wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH-1:BLOCK_OFFSET_WIDTH];
     wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH-1:0];
     reg  [ASSO_WIDTH        -1:0] location;
 
     // registers to save operands of synchronization
-    reg  [TAG_WIDTH         -1:0] group_index_reg;
+    reg  [TAG_WIDTH         -1:0] tag_reg;
     reg  [INDEX_WIDTH       -1:0] block_index_reg;
     reg  [BLOCK_OFFSET_WIDTH-1:0] block_offset_reg;
     reg  [ASSO_WIDTH        -1:0] location_reg;
@@ -80,25 +88,28 @@ module inst_cache#(
     reg [BLOCK_OFFSET_WIDTH-1:0] write_cnt; // block offset that we are pulling from memory. We always pull a full block from memory per miss.
 
     // cache storage
-    reg [TAG_WIDTH-1:0] tags[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1];
-    reg [DATA_WIDTH-1:0] blocks[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1];
-    reg is_valid[0:(1<<INDEX_WIDTH)-1][0:ASSOCIATIVITY-1];
-
-    reg [1:0] state;
-    reg [1:0] next_state;
-
-    localparam STATE_READY = 0;
-    localparam STATE_MISS = 1;
+    reg [TAG_WIDTH-1:0] tags[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // which group in memory
+    reg [DATA_WIDTH-1:0] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
+    reg valid[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // true if this cache space has stored a block.
 
     assign ready = state == STATE_READY;
+    
+    localparam LOCATION_X = {ASSO_WIDTH{1'bx}};
+    localparam TAG_X = {TAG_WIDTH{1'bx}};
 
     // determine which block is bound to the memory requested.
     always @*
     begin
-        location <= 'bx;
+        location = LOCATION_X;
         for (i = 0; i < ASSOCIATIVITY; i = i + 1)
-            if (tags[block_index][i] == group_index)
-                location <= i;
+            if (tags[block_index][i] == tag)
+                location = i;
+        if (location === LOCATION_X)
+            for (i = 0; i < ASSOCIATIVITY; i = i + 1)
+                if (tags[block_index][i] === TAG_X)
+                    location = i;
+        if (location === LOCATION_X)
+            location = 0;
     end
 
     always @*
@@ -106,14 +117,14 @@ module inst_cache#(
         next_state <= state;
         data_valid <= 0;
         data <= 'bx;
-        mem_req_op <= 0;
+        mem_enable <= 0;
         mem_addr <= 'bx;
 
         case (state)
             STATE_READY: begin
-                if (req_op)
+                if (enable)
                 begin
-                    if (is_valid[block_index][location] && tags[block_index][location] == group_index)
+                    if (valid[block_index][location] && tags[block_index][location] == tag)
                     begin
                         data_valid <= 1;
 
@@ -121,6 +132,10 @@ module inst_cache#(
                     end
                     else
                     begin
+`ifdef DEBUG_INST
+                            $display("Inst cache miss on addr %x", addr);
+`endif
+
                         next_state <= STATE_MISS;
                     end
                 end
@@ -131,11 +146,11 @@ module inst_cache#(
             end
             STATE_MISS: begin
                 // start requesting data operation
-                mem_req_op <= 1;
+                mem_enable <= 1;
 
                 // We must figure out that BRAM address format is equal to l1cache here
                 // if your BRAM data width is 8-bit(a byte), you should append 2'b00 to LSB.
-                mem_addr <= {group_index_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}};
+                mem_addr <= {tag_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}};
 
                 if (mem_read_valid)
                 begin
@@ -161,6 +176,20 @@ module inst_cache#(
     begin
         if (!rst_n)
         begin
+            write_cnt <= 0;
+            block_offset_reg <= 0;
+            block_index_reg <= 0;
+            tag_reg <= 0;
+            location_reg <= 0;
+            
+            for (i = 0; i < INDEX_SIZE; i = i + 1)
+                for (j = 0; j < ASSOCIATIVITY; j = j + 1)
+                begin
+                    tags[i][j] <= TAG_X;
+                    valid[i][j] <= 0;
+                    for (k = 0; k < BLOCK_SIZE; k = k + 1)
+                        blocks[i][j][k] <= 0;
+                end
             state <= STATE_READY;
         end
         else
@@ -176,7 +205,7 @@ module inst_cache#(
                         // record the data location we are going to pull from memory
                         block_offset_reg <= block_offset;
                         block_index_reg <= block_index;
-                        group_index_reg <= group_index;
+                        tag_reg <= tag;
                         location_reg <= location;
                     end
                 end
@@ -184,8 +213,8 @@ module inst_cache#(
                     if (next_state == STATE_READY)
                     begin
                         // we have successfully finished pulling data from memory
-                        tags[block_index_reg][location_reg] <= group_index_reg;
-                        is_valid[block_index_reg][location_reg] <= 1;
+                        tags[block_index_reg][location_reg] <= tag_reg;
+                        valid[block_index_reg][location_reg] <= 1;
                     end
 
                     // If we are pulling data from memory

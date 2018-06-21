@@ -26,129 +26,307 @@ module arithmetic_logic_unit #(
     parameter DATA_WIDTH = 32,
     parameter ALU_OP_WIDTH = 5
 )(
+    input stall,
+    input en,
+    
     input [ALU_OP_WIDTH-1:0] op,
     input [DATA_WIDTH-1:0] rs,
     input [DATA_WIDTH-1:0] rt,
     output reg [DATA_WIDTH-1:0] rd,
-    output reg branch
+    output reg branch,
+    output reg [1:0] test_state = 0
     );
 
     reg [DATA_WIDTH-1:0] hi = 0, lo = 0;
     
-    always @*
+    always @(op, rs, rt, hi, lo, en)
     begin
-        rd <= 0;
-        branch <= 0;
-        case(op)
-            `ALU_OP_SLL: begin // sll
-                rd <= rs << rt;
-                $display("ALU: %d << %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_SRL: begin // srl
-                rd <= rs >> rt;
-                $display("ALU: %d >> %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_SRA: begin // sra
-                rd <= $signed(rs) >>> $signed(rt);
-                $display("ALU: %d >>> %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_MFHI: begin // mfhi
-                rd <= hi;
-                $display("ALU: hi = %d", $signed(rd));
-            end
-            `ALU_OP_MFLO: begin // mflo
-                rd <= lo;
-                $display("ALU: lo = %d", $signed(rd));
-            end
-            `ALU_OP_MUL: begin // mul
-                {hi, lo} <= $signed(rs) * $signed(rt);
-                $display("ALU: %d * %d = %d", $signed(rs), $signed(rt), $signed({hi, lo}));
-            end
-            `ALU_OP_MULU: begin // mulu
-                {hi, lo} <= $unsigned(rs) * $unsigned(rt);
-                $display("ALU: %d * %d = %d", $unsigned(rs), $unsigned(rt), $unsigned({hi, lo}));
-            end
-            `ALU_OP_DIV: begin // div
-                lo <= $signed(rs) / $signed(rt);
-                hi <= $signed(rs) % $signed(rt);
-                $display("ALU: %d / %d = %d, %d", $signed(rs), $signed(rt), $signed(lo), $signed(hi));
-            end
-            `ALU_OP_DIVU: begin // divu
-                lo <= $unsigned(rs) / $unsigned(rt);
-                hi <= $unsigned(rs) % $unsigned(rt);
-                $display("ALU: %d / %d = %d, %d", $unsigned(rs), $unsigned(rt), $unsigned(lo), $unsigned(hi));
-            end
-            `ALU_OP_ADD: begin // add
-                rd <= $signed(rs) + $signed(rt);
-                $display("ALU: %d + %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_ADDU: begin // addu
-                rd <= $unsigned(rs) + $unsigned(rt);
-                $display("ALU: %d + %d = %d", $unsigned(rs), $unsigned(rt), $unsigned(rd));
-            end
-            `ALU_OP_SUB: begin // sub
-                rd <= $signed(rs) - $signed(rt);
-                $display("ALU: %d - %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_SUBU: begin // subu
-                rd <= $unsigned(rs) - $unsigned(rt);
-                $display("ALU: %d - %d = %d", $unsigned(rs), $unsigned(rt), $unsigned(rd));
-            end
-            `ALU_OP_AND: begin // and
-                rd <= rs & rt;
-                $display("ALU: %d & %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_OR: begin // or
-                rd <= rs | rt;
-                $display("ALU: %d | %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_XOR: begin // xor
-                rd <= rs ^ rt;
-                $display("ALU: %d ^ %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_NOR: begin // nor
-                rd <= ~(rs | rt);
-                $display("ALU: %d ~| %d = %d", $signed(rs), $signed(rt), $signed(rd));
-            end
-            `ALU_OP_SLT: begin // slt
-                rd <= $signed(rs) < $signed(rt) ? 1 : 0;
-                $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), rd);
-            end
-            `ALU_OP_SLTU: begin // sltu
-                rd = $unsigned(rs) < $unsigned(rt) ? 1 : 0;
-                branch = 0;
-                $display("ALU: %d < %d = %d", $unsigned(rs), $unsigned(rt), rd);
-            end
-            `ALU_OP_LU: begin // lu
-                rd <= rt << 16;
-                $display("ALU: %d << 16 = %d", $unsigned(rt), $unsigned(rd));
-            end
-            `ALU_OP_BEQ: begin // beq
-                branch <= rs == rt ? 1 : 0;
-                $display("ALU: %d == %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            `ALU_OP_BNE: begin // bne
-                branch <= $signed(rs) != $signed(rt) ? 1 : 0;
-                $display("ALU: %d != %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            `ALU_OP_BLT: begin // bltz
-                branch <= $signed(rs) < $signed(rt) ? 1 : 0;
-                $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            `ALU_OP_BGE: begin // bgez
-                branch <= $signed(rs) >= $signed(rt) ? 1 : 0;
-                $display("ALU: %d > %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            `ALU_OP_BLE: begin // blez
-                branch <= $signed(rs) <= $signed(rt) ? 1 : 0;
-                $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            `ALU_OP_BGT: begin // bgtz
-                branch <= $signed(rs) > $signed(rt) ? 1 : 0;
-                $display("ALU: %d > %d = %d", $signed(rs), $signed(rt), branch);
-            end
-            default:
-                $display("ALU: unknown op %b", op);
-        endcase
+        if (en)
+        begin
+            case(op)
+                `ALU_OP_SLL: begin // sll
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs << rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d << %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_SRL: begin // srl
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs >> rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d >> %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_SRA: begin // sra
+                    branch = 0;
+                    test_state = 0;
+                    rd = $signed(rs) >>> $signed(rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d >>> %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_MFHI: begin // mfhi
+                    branch = 0;
+                    test_state = 0;
+                    rd = hi;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: hi = %d", $signed(rd));
+`endif
+                end
+                `ALU_OP_MFLO: begin // mflo
+                    branch = 0;
+                    test_state = 0;
+                    rd = lo;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: lo = %d", $signed(rd));
+`endif
+                end
+                `ALU_OP_MUL: begin // mul
+                    branch = 0;
+                    test_state = 0;
+                    rd = 0;
+                    {hi, lo} = $signed(rs) * $signed(rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d * %d = %d", $signed(rs), $signed(rt), $signed({hi, lo}));
+`endif
+                end
+                `ALU_OP_MULU: begin // mulu
+                    branch = 0;
+                    test_state = 0;
+                    rd = 0;
+                    {hi, lo} = $unsigned(rs) * $unsigned(rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d * %d = %d", $unsigned(rs), $unsigned(rt), $unsigned({hi, lo}));
+`endif
+                end
+                `ALU_OP_DIV: begin // div
+                    branch = 0;
+                    test_state = 0;
+                    rd = 0;
+                    lo = $signed(rs) / $signed(rt);
+                    hi = $signed(rs) % $signed(rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d / %d = %d, %d", $signed(rs), $signed(rt), $signed(lo), $signed(hi));
+`endif
+                end
+                `ALU_OP_DIVU: begin // divu
+                    branch = 0;
+                    test_state = 0;
+                    rd = 0;
+                    lo = $unsigned(rs) / $unsigned(rt);
+                    hi = $unsigned(rs) % $unsigned(rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d / %d = %d, %d", $unsigned(rs), $unsigned(rt), $unsigned(lo), $unsigned(hi));
+`endif
+                end
+                `ALU_OP_ADD: begin // add
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs + rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d + %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_ADDU: begin // addu
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs + rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d + %d = %d", $unsigned(rs), $unsigned(rt), $unsigned(rd));
+`endif
+                end
+                `ALU_OP_SUB: begin // sub
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs - rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d - %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_SUBU: begin // subu
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs - rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d - %d = %d", $unsigned(rs), $unsigned(rt), $unsigned(rd));
+`endif
+                end
+                `ALU_OP_AND: begin // and
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs & rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d & %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_OR: begin // or
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs | rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d | %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_XOR: begin // xor
+                    branch = 0;
+                    test_state = 0;
+                    rd = rs ^ rt;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d ^ %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_NOR: begin // nor
+                    branch = 0;
+                    test_state = 0;
+                    rd = ~(rs | rt);
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d ~| %d = %d", $signed(rs), $signed(rt), $signed(rd));
+`endif
+                end
+                `ALU_OP_SLT: begin // slt
+                    branch = 0;
+                    test_state = 0;
+                    rd = $signed(rs) < $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), rd);
+`endif
+                end
+                `ALU_OP_SLTU: begin // sltu
+                    test_state = 0;
+                    rd = $unsigned(rs) < $unsigned(rt) ? 1 : 0;
+                    branch = 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d < %d = %d", $unsigned(rs), $unsigned(rt), rd);
+`endif
+                end
+                `ALU_OP_LU: begin // lu
+                    branch = 0;
+                    test_state = 0;
+                    rd = rt << 16;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d << 16 = %d", $unsigned(rt), $unsigned(rd));
+`endif
+                end
+                `ALU_OP_BEQ: begin // beq
+                    rd = 0;
+                    test_state = 0;
+                    branch = rs == rt ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d == %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_BNE: begin // bne
+                    rd = 0;
+                    test_state = 0;
+                    branch = $signed(rs) != $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d != %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_BLT: begin // bltz
+                    rd = 0;
+                    test_state = 0;
+                    branch = $signed(rs) < $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_BGE: begin // bgez
+                    rd = 0;
+                    test_state = 0;
+                    branch = $signed(rs) >= $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d > %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_BLE: begin // blez
+                    rd = 0;
+                    test_state = 0;
+                    branch = $signed(rs) <= $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_BGT: begin // bgtz
+                    rd = 0;
+                    test_state = 0;
+                    branch = $signed(rs) > $signed(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d > %d = %d", $signed(rs), $signed(rt), branch);
+`endif
+                end
+                `ALU_OP_TEST_PASS: begin
+                    rd = 0;
+                    branch = 0;
+                    test_state = `TEST_PASS;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("Test passed: %d", $signed(rt));
+`endif
+                end
+                `ALU_OP_TEST_FAIL: begin
+                    rd = 0;
+                    branch = 0;
+                    test_state = `TEST_FAIL;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("Test failed: %d", $signed(rt));
+`endif
+                end
+                `ALU_OP_TEST_DONE: begin
+                    rd = 0;
+                    branch = 0;
+                    test_state = `TEST_DONE;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("Test done: %d", $signed(rt));
+`endif
+                end
+                default: begin
+                    rd = 0;
+                    branch = 0;
+                    test_state = 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: unknown op %b", op);
+`endif
+                end
+            endcase
+        end
+        else
+        begin
+            rd <= 0;
+            branch <= 0;
+            test_state <= 0;
+        end
     end
 endmodule

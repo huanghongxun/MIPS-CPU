@@ -45,8 +45,8 @@ module uart_transmitter#(
     reg [13:0] counter; // 14 bits counter to count the baud rate = 9600, counter = clock / baud rate = 10416
     reg state, next_state; // initial & next state variable
     // 10 bits needed to be shifted out during transmission.
-    // The least significant bit is initialized with the binary value 0 (a start bit) A binary value ï¿½1ï¿½ is introduced in the most significant bit 
-    reg [TRAN_WIDTH-1:0] data;
+    // The least significant bit is initialized with the binary value 0 (a start bit) A binary value ï¿?1ï¿? is introduced in the most significant bit 
+    reg [TRAN_WIDTH-1:0] cached;
     reg shift; // shift signal to start bit shifting in UART
     reg load; // load signal to start loading the data into rightshift register and add start and stop bit
     reg clear; // clear signal to start reset the bit for UART transmission
@@ -68,7 +68,7 @@ module uart_transmitter#(
                 state <= next_state;
                 counter <= 0;
                 if (load)
-                    data <= {1'b1, data, 1'b0}; // load the data to be transmitted if load is asserted, add start 0 and stop 1 bits.
+                    cached <= {1'b1, data, 1'b0}; // load the data to be transmitted if load is asserted, add start 0 and stop 1 bits.
                 if (clear)
                     bit <= 0;
                 if (shift) 
@@ -109,7 +109,7 @@ module uart_transmitter#(
                 else
                 begin
                     next_state <= STATE_TRANSMIT; // keep transmit state
-                    TxD <= data[bit]; // output TxD
+                    TxD <= cached[bit]; // output TxD
                     shift <= 1; // continue shifting the data
                 end
             end

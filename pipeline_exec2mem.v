@@ -53,7 +53,7 @@ module pipeline_exec2mem #(
     output reg                  wb_reg_out,
     input                       branch_in,
     output reg                  branch_out,
-    input                           virtual_write_addr_in,
+    input      [REG_ADDR_WIDTH-1:0] virtual_write_addr_in,
     output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
     input      [REG_ADDR_WIDTH:0] physical_write_addr_in,
     output reg [REG_ADDR_WIDTH:0] physical_write_addr_out,

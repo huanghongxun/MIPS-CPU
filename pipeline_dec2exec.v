@@ -24,8 +24,9 @@ module pipeline_dec2exec #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 32,
     parameter REG_ADDR_WIDTH = 5,
-    parameter ALU_OP_WIDTH = 5)
-    (
+    parameter ALU_OP_WIDTH = 5,
+    parameter FREE_LIST_WIDTH = 3
+)(
     input clk,
     input rst_n,
     input flush,
@@ -37,6 +38,8 @@ module pipeline_dec2exec #(
     output reg [DATA_WIDTH-1:0] inst_out,
     input      [ALU_OP_WIDTH-1:0] alu_op_in,
     output reg [ALU_OP_WIDTH-1:0] alu_op_out,
+    input                       alu_en_in,
+    output reg                  alu_en_out,
     input      [DATA_WIDTH-1:0] alu_rs_in,
     output reg [DATA_WIDTH-1:0] alu_rs_out,
     input      [DATA_WIDTH-1:0] alu_rt_in,
@@ -47,6 +50,8 @@ module pipeline_dec2exec #(
     output reg                  mem_rw_out,
     input                       mem_enable_in,
     output reg                  mem_enable_out,
+    input      [DATA_WIDTH-1:0] mem_write_in,
+    output reg [DATA_WIDTH-1:0] mem_write_out,
     input                       sign_extend_in,
     output reg                  sign_extend_out,
     input                       wb_src_in,
@@ -59,8 +64,8 @@ module pipeline_dec2exec #(
     output reg [ADDR_WIDTH-1:0] branch_target_out,
     input      [REG_ADDR_WIDTH-1:0] virtual_write_addr_in,
     output reg [REG_ADDR_WIDTH-1:0] virtual_write_addr_out,
-    input      [REG_ADDR_WIDTH-1:0] physical_write_addr_in,
-    output reg [REG_ADDR_WIDTH-1:0] physical_write_addr_out,
+    input      [REG_ADDR_WIDTH:0] physical_write_addr_in,
+    output reg [REG_ADDR_WIDTH:0] physical_write_addr_out,
     input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
     output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
     );
@@ -72,11 +77,13 @@ module pipeline_dec2exec #(
             pc_out <= 0;
             inst_out <= 0;
             alu_op_out <= 0;
+            alu_en_out <= 0;
             alu_rs_out <= 0;
             alu_rt_out <= 0;
             mem_width_out <= 0;
             mem_rw_out <= 0;
             mem_enable_out <= 0;
+            mem_write_out <= 0;
             sign_extend_out <= 0;
             wb_src_out <= 0;
             wb_reg_out <= 0;
@@ -95,11 +102,13 @@ module pipeline_dec2exec #(
                     pc_out <= 0;
                     inst_out <= 0;
                     alu_op_out <= 0;
+                    alu_en_out <= 0;
                     alu_rs_out <= 0;
                     alu_rt_out <= 0;
                     mem_width_out <= 0;
                     mem_rw_out <= 0;
                     mem_enable_out <= 0;
+                    mem_write_out <= 0;
                     sign_extend_out <= 0;
                     wb_src_out <= 0;
                     wb_reg_out <= 0;
@@ -114,11 +123,13 @@ module pipeline_dec2exec #(
                     pc_out <= pc_in;
                     inst_out <= inst_in;
                     alu_op_out <= alu_op_in;
+                    alu_en_out <= alu_en_in;
                     alu_rs_out <= alu_rs_in;
                     alu_rt_out <= alu_rt_in;
                     mem_width_out <= mem_width_in;
                     mem_rw_out <= mem_rw_in;
                     mem_enable_out <= mem_enable_in;
+                    mem_write_out <= mem_write_in;
                     sign_extend_out <= sign_extend_in;
                     wb_src_out <= wb_src_in;
                     wb_reg_out <= wb_reg_in;
