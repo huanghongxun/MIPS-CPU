@@ -10,10 +10,6 @@
 // Target Devices: Basys3
 // Tool Versions: Vivado 2018.1
 // Description: 
-//   prediction: 0 - predict not taken
-//               1 - branch likely
-//               2 - branch delay slot
-//               3 - branch prediction
 // 
 // Dependencies: 
 // 
@@ -54,7 +50,7 @@ module pipeline#(
     input [REG_ADDR_WIDTH:0] exec_physical_write_addr,
     input exec_mem_enable,
     input exec_wb_reg,
-    input exec_branch,
+    input exec_take_branch,
     input [ADDR_WIDTH-1:0] exec_branch_target,
 
     // memory access
@@ -116,7 +112,7 @@ module pipeline#(
             if (decode_stall || !fetch_done)
                 fetch_stall <= 1;
 
-            if (exec_branch || !fetch_done)
+            if (exec_take_branch || !fetch_done)
                 fetch_flush_data <= 1;
         end
         else
@@ -141,6 +137,9 @@ module pipeline#(
                 decode_stall <= 1;
                 decode_flush <= 1;
             end
+            
+            if (exec_take_branch)
+                decode_flush <= 1;
 
             // If previous instruction is loading data from memory
             // we should insert a bubble to wait for data ready.
@@ -233,8 +232,8 @@ module pipeline#(
     always @*
     begin
         // predict not taken
-        fetch_branch <= exec_branch || fetch_load;
-        if (exec_branch)
+        fetch_branch <= exec_take_branch || fetch_load;
+        if (exec_take_branch)
             fetch_branch_target <= exec_branch_target;
         else
             fetch_branch_target <= fetch_addr;
@@ -251,11 +250,15 @@ module pipeline#(
             // only execute the inst if the branch is not taken,
             // if the branch is taken, the instruction is flushed,
             // and one cycle's opportunity to finish an instruction is lost.
-            if (exec_branch && !fetch_done)
+            if (exec_take_branch && !fetch_done)
+            begin
                 fetch_flush_control <= 1;
+            end
             else if (fetch_flush_control && fetch_done)
-            // instruction from memory is ready, then we flush fetch
+            begin
+                // instruction from memory is ready, then we flush fetch
                 fetch_flush_control <= 0;
+            end
         end
     end
 
@@ -268,7 +271,7 @@ module pipeline#(
         end
         else
         begin
-            if (fetch_stall && exec_branch)
+            if (fetch_stall && exec_take_branch)
             begin
                 fetch_load <= 1;
                 fetch_addr <= exec_branch_target;
@@ -276,6 +279,7 @@ module pipeline#(
             else if (fetch_load && !fetch_stall)
             begin
                 fetch_load <= 0;
+                fetch_addr <= 'bx;
             end
         end
     end

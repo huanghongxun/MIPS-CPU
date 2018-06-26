@@ -34,28 +34,27 @@ module register_file#(
     input stall_in,
 
     // decode
-    input [REG_ADDR_WIDTH-1:0] virtual_rs_addr,
-    output [DATA_WIDTH-1:0] virtual_rs_data,
-    input [REG_ADDR_WIDTH-1:0] virtual_rt_addr,
-    output [DATA_WIDTH-1:0] virtual_rt_data,
-    input dec_rw,
-    input [REG_ADDR_WIDTH-1:0] virtual_rd_addr,
+    input [REG_ADDR_WIDTH-1:0] virtual_rs_addr, // the first operand register index of the inst in decode stage
+    output [DATA_WIDTH-1:0] virtual_rs_data, // the data of the first operand register
+    input [REG_ADDR_WIDTH-1:0] virtual_rt_addr, // the second operand register index of the inst in decode stage
+    output [DATA_WIDTH-1:0] virtual_rt_data, // the data of the second operand register
+    input dec_rw, // write or read mode
+    input [REG_ADDR_WIDTH-1:0] virtual_rd_addr, // the result register index of the inst in decode stage
 
     // write back stage
-    input mem_write_enable,
-    input [REG_ADDR_WIDTH:0] wb_physical_write_addr,
-    input [DATA_WIDTH-1:0] wb_physical_write_data,
-    input [REG_ADDR_WIDTH-1:0] wb_virtual_write_addr,
+    input wb_write_enable, // if the inst in write back stage writes back
+    input [REG_ADDR_WIDTH:0] wb_physical_write_addr, // the physical(allocated) result register index of the inst in wb stage.
+    input [DATA_WIDTH-1:0] wb_physical_write_data, // the data to write
     input [FREE_LIST_WIDTH-1:0] wb_active_list_index, // last index of active list for reverting
  
     // physical register address
-    output [REG_ADDR_WIDTH:0] physical_rs_addr,
-    output [REG_ADDR_WIDTH:0] physical_rt_addr,
-    output [REG_ADDR_WIDTH:0] physical_rd_addr,
+    output [REG_ADDR_WIDTH:0] physical_rs_addr, // the allocated register index of the first operand register of the inst in decode stage
+    output [REG_ADDR_WIDTH:0] physical_rt_addr, // the allocated register index of the second operand register of the inst in decode stage
+    output [REG_ADDR_WIDTH:0] physical_rd_addr, // the allocated register index of the result register of the inst in decode stage
 
     output [FREE_LIST_WIDTH-1:0] active_list_index,
     
-    output reg stall_out
+    output reg stall_out // if stall decode stage
     );
 
     localparam REG_ADDR_SIZE = 1 << REG_ADDR_WIDTH;
@@ -115,7 +114,7 @@ module register_file#(
             stall_out <= 0;
         
             // perform write
-            if (mem_write_enable && (wb_physical_write_addr != 0))
+            if (wb_write_enable && (wb_physical_write_addr != 0))
             begin
                 preg[wb_physical_write_addr] <= wb_physical_write_data;
                 active_list[active_list_index][0] <= 1;
@@ -127,6 +126,8 @@ module register_file#(
             begin
                 if (free_list_size == 0)
                 begin
+                    // if no physical register can be allocated,
+                    // wait for register collection.
                     stall_out <= 1;
 `ifdef DEBUG_REG
                     $display("Register file encountered lack of physical registers");

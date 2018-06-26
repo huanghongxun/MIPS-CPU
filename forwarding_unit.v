@@ -39,7 +39,7 @@ module forwarding_unit#(
 
     // feedback from execution stage
     input exec_wb_reg,
-    input exec_alu_en,
+    input [1:0] exec_exec_src,
     input [REG_ADDR_WIDTH:0] exec_write_addr,
     input [DATA_WIDTH-1:0] exec_write,
 
@@ -64,7 +64,7 @@ module forwarding_unit#(
 
         if (dec_rs_enable)
         begin
-            if (exec_wb_reg && exec_alu_en && dec_prs_addr == exec_write_addr)
+            if (exec_wb_reg && exec_exec_src == `EX_ALU && dec_prs_addr == exec_write_addr)
                 dec_rs_override <= exec_write;
             else if (mem_wb_reg && dec_prs_addr == mem_write_addr)
                 dec_rs_override <= mem_write;
@@ -74,7 +74,7 @@ module forwarding_unit#(
 
         if (dec_rt_enable)
         begin
-            if (exec_wb_reg && exec_alu_en && dec_prt_addr == exec_write_addr)
+            if (exec_wb_reg && exec_exec_src == `EX_ALU && dec_prt_addr == exec_write_addr)
                 dec_rt_override <= exec_write;
             else if (mem_wb_reg && dec_prt_addr == mem_write_addr)
                 dec_rt_override <= mem_write;

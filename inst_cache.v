@@ -88,6 +88,7 @@ module inst_cache#(
     reg [BLOCK_OFFSET_WIDTH-1:0] write_cnt; // block offset that we are pulling from memory. We always pull a full block from memory per miss.
 
     // cache storage
+    reg [ASSO_WIDTH-1:0] timestamp[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // the visit order
     reg [TAG_WIDTH-1:0] tags[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // which group in memory
     reg [DATA_WIDTH-1:0] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
     reg valid[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // true if this cache space has stored a block.
@@ -101,15 +102,22 @@ module inst_cache#(
     always @*
     begin
         location = LOCATION_X;
+        // check if we have already loaded the block of data
         for (i = 0; i < ASSOCIATIVITY; i = i + 1)
             if (tags[block_index][i] == tag)
                 location = i;
         if (location === LOCATION_X)
+            // check if empty space to cache data
             for (i = 0; i < ASSOCIATIVITY; i = i + 1)
                 if (tags[block_index][i] === TAG_X)
                     location = i;
-        if (location === LOCATION_X)
-            location = 0;
+        if (location === LOCATION_X) // LRU
+            // if no block available, we choose the block unvisited for the longest time.
+            for (i = 0; i < ASSOCIATIVITY; i = i + 1)
+                if (timestamp[block_index][i] == {ASSO_WIDTH{1'b1}})
+                    location = i;
+        
+        // location should not be 'bx now
     end
 
     always @*
@@ -129,11 +137,16 @@ module inst_cache#(
                         data_valid <= 1;
 
                         data <= blocks[block_index][location][block_offset];
+                        
+                        timestamp[block_index][location] <= 0;
+                        for (i = 0; i < ASSOCIATIVITY; i = i + 1)
+                            if (timestamp[block_index][i] < timestamp[block_index][location])
+                                timestamp[block_index][i] <= timestamp[block_index][i] + 1;
                     end
                     else
                     begin
 `ifdef DEBUG_INST
-                            $display("Inst cache miss on addr %x", addr);
+                        $display("Inst cache miss on addr %x", addr);
 `endif
 
                         next_state <= STATE_MISS;
@@ -165,6 +178,11 @@ module inst_cache#(
                     if (mem_last)
                     begin
                         next_state <= STATE_READY;
+                                            
+                        timestamp[block_index_reg][location_reg] <= 0;
+                        for (i = 0; i < ASSOCIATIVITY; i = i + 1)
+                            if (timestamp[block_index_reg][i] < timestamp[block_index_reg][location_reg])
+                                timestamp[block_index_reg][i] <= timestamp[block_index_reg][i] + 1;
                     end
                 end
             end
@@ -187,6 +205,7 @@ module inst_cache#(
                 begin
                     tags[i][j] <= TAG_X;
                     valid[i][j] <= 0;
+                    timestamp[i][j] <= j;
                     for (k = 0; k < BLOCK_SIZE; k = k + 1)
                         blocks[i][j][k] <= 0;
                 end

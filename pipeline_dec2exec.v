@@ -38,14 +38,14 @@ module pipeline_dec2exec #(
     output reg [DATA_WIDTH-1:0] inst_out,
     input      [ALU_OP_WIDTH-1:0] alu_op_in,
     output reg [ALU_OP_WIDTH-1:0] alu_op_out,
-    input                       alu_en_in,
-    output reg                  alu_en_out,
+    input                 [1:0] exec_src_in,
+    output reg            [1:0] exec_src_out,
     input      [DATA_WIDTH-1:0] alu_rs_in,
     output reg [DATA_WIDTH-1:0] alu_rs_out,
     input      [DATA_WIDTH-1:0] alu_rt_in,
     output reg [DATA_WIDTH-1:0] alu_rt_out, // must process b_ctrl
-    input                       mem_width_in,
-    output reg                  mem_width_out,
+    input                 [1:0] mem_width_in,
+    output reg            [1:0] mem_width_out,
     input                       mem_rw_in,
     output reg                  mem_rw_out,
     input                       mem_enable_in,
@@ -77,7 +77,7 @@ module pipeline_dec2exec #(
             pc_out <= 0;
             inst_out <= 0;
             alu_op_out <= 0;
-            alu_en_out <= 0;
+            exec_src_out <= 0;
             alu_rs_out <= 0;
             alu_rt_out <= 0;
             mem_width_out <= 0;
@@ -102,7 +102,7 @@ module pipeline_dec2exec #(
                     pc_out <= 0;
                     inst_out <= 0;
                     alu_op_out <= 0;
-                    alu_en_out <= 0;
+                    exec_src_out <= 0;
                     alu_rs_out <= 0;
                     alu_rt_out <= 0;
                     mem_width_out <= 0;
@@ -123,7 +123,7 @@ module pipeline_dec2exec #(
                     pc_out <= pc_in;
                     inst_out <= inst_in;
                     alu_op_out <= alu_op_in;
-                    alu_en_out <= alu_en_in;
+                    exec_src_out <= exec_src_in;
                     alu_rs_out <= alu_rs_in;
                     alu_rt_out <= alu_rt_in;
                     mem_width_out <= mem_width_in;

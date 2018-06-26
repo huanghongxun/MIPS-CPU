@@ -194,15 +194,30 @@ module memory_controller#(
                 end
                 STATE_EXTERNAL: begin
                     if (mem_last)
+                    begin
                         state <= STATE_READY;
+`ifdef DEBUG_MEMCTRL
+                        $display("memctrl: external device finished");
+`endif
+                    end
                 end
                 STATE_INST_MEM: begin
                     if (mem_last)
+                    begin
                         state <= STATE_READY;
+`ifdef DEBUG_MEMCTRL
+                        $display("memctrl: inst cache finished");
+`endif
+                    end
                 end
                 STATE_DATA_MEM: begin
                     if (mem_last)
+                    begin
                         state <= STATE_READY;
+`ifdef DEBUG_MEMCTRL
+                        $display("memctrl: data cache finished");
+`endif
+                    end
                 end
             endcase
         end
