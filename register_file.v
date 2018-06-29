@@ -26,7 +26,8 @@
 
 module register_file#(
     parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5
+    parameter REG_ADDR_WIDTH = 5,
+    parameter FREE_LIST_WIDTH = 5
 )(
     input clk,
     input rst_n,
