@@ -41,17 +41,17 @@ module pipeline#(
 
     // decode
     input dec_rs_enable,
-    input [REG_ADDR_WIDTH:0] dec_rs_addr,
+    input [`PREG_BUS] dec_rs_addr,
     input dec_rt_enable,
-    input [REG_ADDR_WIDTH:0] dec_rt_addr,
+    input [`PREG_BUS] dec_rt_addr,
     input decode_branch,
 
     // execute
-    input [REG_ADDR_WIDTH:0] exec_physical_write_addr,
+    input [`PREG_BUS] exec_physical_write_addr,
     input exec_mem_enable,
     input exec_wb_reg,
     input exec_take_branch,
-    input [ADDR_WIDTH-1:0] exec_branch_target,
+    input [`ADDR_BUS] exec_branch_target,
 
     // memory access
     input mem_done,
@@ -83,11 +83,11 @@ module pipeline#(
 
     // ======= Control Hazards ========
     output reg fetch_branch,
-    output reg [ADDR_WIDTH-1:0] fetch_branch_target
+    output reg [`ADDR_BUS] fetch_branch_target
     );
 
     reg fetch_load;
-    reg [ADDR_WIDTH-1:0] fetch_addr;
+    reg [`ADDR_BUS] fetch_addr;
     reg fetch_flush_data;
     reg fetch_flush_control;
     assign fetch_flush = fetch_flush_data || fetch_flush_control;

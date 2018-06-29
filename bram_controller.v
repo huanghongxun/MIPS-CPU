@@ -37,17 +37,17 @@ module bram_controller#(
     input clk,
     input rst_n,
     
-    input [ADDR_WIDTH-1:0] addr,
+    input [`ADDR_BUS] addr,
     input enable, // 1 to start an operation, 0 to keep disabled
     input rw, // 1 to write, 0 to read
     
     input op_size, // 0 if operate on a block, 1 if terminates operation when finishes_op = 1
     input finishes_op, // 1 if operation terminates.
     
-    input [DATA_WIDTH-1:0] data_write,
+    input [`DATA_BUS] data_write,
     output reg data_write_req_input,
 
-    output reg [DATA_WIDTH-1:0] data_read,
+    output reg [`DATA_BUS] data_read,
     output reg data_read_valid,
 
     output reg finished,
@@ -55,9 +55,9 @@ module bram_controller#(
     // BRAM interface
     output reg ena = 0,
     output reg wea = 0,
-    output reg [ADDR_WIDTH-1:0] addra,
-    output reg [DATA_WIDTH-1:0] dina,
-    input [DATA_WIDTH-1:0] douta
+    output reg [`ADDR_BUS] addra,
+    output reg [`DATA_BUS] dina,
+    input [`DATA_BUS] douta
     );
 
     // constants

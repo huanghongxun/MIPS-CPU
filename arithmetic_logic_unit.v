@@ -30,14 +30,14 @@ module arithmetic_logic_unit #(
     input en,
     
     input [ALU_OP_WIDTH-1:0] op,
-    input [DATA_WIDTH-1:0] rs,
-    input [DATA_WIDTH-1:0] rt,
-    output reg [DATA_WIDTH-1:0] rd,
+    input [`DATA_BUS] rs,
+    input [`DATA_BUS] rt,
+    output reg [`DATA_BUS] rd,
     output reg branch,
     output reg [1:0] test_state = 0
     );
 
-    reg [DATA_WIDTH-1:0] hi = 0, lo = 0;
+    reg [`DATA_BUS] hi = 0, lo = 0;
     
     always @(op, rs, rt, hi, lo, en)
     begin

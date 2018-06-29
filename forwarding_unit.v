@@ -29,32 +29,32 @@ module forwarding_unit#(
 )(
     // feedback from decode stage
     input dec_rs_enable,
-    input [REG_ADDR_WIDTH-1:0] dec_vrs_addr,
-    input [REG_ADDR_WIDTH:0] dec_prs_addr,
-    input [DATA_WIDTH-1:0] dec_rs_data,
+    input [`VREG_BUS] dec_vrs_addr,
+    input [`PREG_BUS] dec_prs_addr,
+    input [`DATA_BUS] dec_rs_data,
     input dec_rt_enable,
-    input [REG_ADDR_WIDTH-1:0] dec_vrt_addr,
-    input [REG_ADDR_WIDTH:0] dec_prt_addr,
-    input [DATA_WIDTH-1:0] dec_rt_data,
+    input [`VREG_BUS] dec_vrt_addr,
+    input [`PREG_BUS] dec_prt_addr,
+    input [`DATA_BUS] dec_rt_data,
 
     // feedback from execution stage
     input exec_wb_reg,
     input [1:0] exec_exec_src,
-    input [REG_ADDR_WIDTH:0] exec_write_addr,
-    input [DATA_WIDTH-1:0] exec_write,
+    input [`PREG_BUS] exec_write_addr,
+    input [`DATA_BUS] exec_write,
 
     // feedback from memory access stage
     input mem_wb_reg,
-    input [REG_ADDR_WIDTH:0] mem_write_addr,
-    input [DATA_WIDTH-1:0] mem_write,
+    input [`PREG_BUS] mem_write_addr,
+    input [`DATA_BUS] mem_write,
 
     // feedback from write back stage
     input wb_wb_reg,
-    input [REG_ADDR_WIDTH:0] wb_write_addr,
-    input [DATA_WIDTH-1:0] wb_write,
+    input [`PREG_BUS] wb_write_addr,
+    input [`DATA_BUS] wb_write,
 
-    output reg [DATA_WIDTH-1:0] dec_rs_override,
-    output reg [DATA_WIDTH-1:0] dec_rt_override
+    output reg [`DATA_BUS] dec_rs_override,
+    output reg [`DATA_BUS] dec_rt_override
     );
 
     always @*

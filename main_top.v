@@ -49,9 +49,9 @@ module main_top(
     
     wire bram_ena;
     wire bram_wea;
-    wire [ADDR_WIDTH-1:0] bram_addra;
-    wire [DATA_WIDTH-1:0] bram_dina;
-    wire [DATA_WIDTH-1:0] bram_douta;
+    wire [`ADDR_BUS] bram_addra;
+    wire [`DATA_BUS] bram_dina;
+    wire [`DATA_BUS] bram_douta;
     
     wire [7:0] receive_data;
     wire receive_last;

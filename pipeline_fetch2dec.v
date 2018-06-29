@@ -29,10 +29,10 @@ module pipeline_fetch2dec #(
     input flush,
     input stall,
 
-    input      [ADDR_WIDTH-1:0] pc_in,
-    output reg [ADDR_WIDTH-1:0] pc_out,
-    input      [DATA_WIDTH-1:0] inst_in,
-    output reg [DATA_WIDTH-1:0] inst_out,
+    input      [`ADDR_BUS] pc_in,
+    output reg [`ADDR_BUS] pc_out,
+    input      [`DATA_BUS] inst_in,
+    output reg [`DATA_BUS] inst_out,
     input                       bubble_in,
     output reg                  bubble_out
     );

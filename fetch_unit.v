@@ -29,8 +29,8 @@ module fetch_unit #(
     input stall,
     
     input rw,
-    input [ADDR_WIDTH-1:0] write,
-    output reg [ADDR_WIDTH-1:0] pc
+    input [`ADDR_BUS] write,
+    output reg [`ADDR_BUS] pc
     );
 
     always @(posedge clk, negedge rst_n)

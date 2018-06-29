@@ -26,31 +26,30 @@
 
 module register_file#(
     parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5,
-    parameter FREE_LIST_WIDTH = 3
+    parameter REG_ADDR_WIDTH = 5
 )(
     input clk,
     input rst_n,
     input stall_in,
 
     // decode
-    input [REG_ADDR_WIDTH-1:0] virtual_rs_addr, // the first operand register index of the inst in decode stage
-    output [DATA_WIDTH-1:0] virtual_rs_data, // the data of the first operand register
-    input [REG_ADDR_WIDTH-1:0] virtual_rt_addr, // the second operand register index of the inst in decode stage
-    output [DATA_WIDTH-1:0] virtual_rt_data, // the data of the second operand register
+    input [`VREG_BUS] virtual_rs_addr, // the first operand register index of the inst in decode stage
+    output [`DATA_BUS] virtual_rs_data, // the data of the first operand register
+    input [`VREG_BUS] virtual_rt_addr, // the second operand register index of the inst in decode stage
+    output [`DATA_BUS] virtual_rt_data, // the data of the second operand register
     input dec_rw, // write or read mode
-    input [REG_ADDR_WIDTH-1:0] virtual_rd_addr, // the result register index of the inst in decode stage
+    input [`VREG_BUS] virtual_rd_addr, // the result register index of the inst in decode stage
 
     // write back stage
     input wb_write_enable, // if the inst in write back stage writes back
-    input [REG_ADDR_WIDTH:0] wb_physical_write_addr, // the physical(allocated) result register index of the inst in wb stage.
-    input [DATA_WIDTH-1:0] wb_physical_write_data, // the data to write
+    input [`PREG_BUS] wb_physical_write_addr, // the physical(allocated) result register index of the inst in wb stage.
+    input [`DATA_BUS] wb_physical_write_data, // the data to write
     input [FREE_LIST_WIDTH-1:0] wb_active_list_index, // last index of active list for reverting
  
     // physical register address
-    output [REG_ADDR_WIDTH:0] physical_rs_addr, // the allocated register index of the first operand register of the inst in decode stage
-    output [REG_ADDR_WIDTH:0] physical_rt_addr, // the allocated register index of the second operand register of the inst in decode stage
-    output [REG_ADDR_WIDTH:0] physical_rd_addr, // the allocated register index of the result register of the inst in decode stage
+    output [`PREG_BUS] physical_rs_addr, // the allocated register index of the first operand register of the inst in decode stage
+    output [`PREG_BUS] physical_rt_addr, // the allocated register index of the second operand register of the inst in decode stage
+    output [`PREG_BUS] physical_rd_addr, // the allocated register index of the result register of the inst in decode stage
 
     output [FREE_LIST_WIDTH-1:0] active_list_index,
     
@@ -62,11 +61,11 @@ module register_file#(
 
     integer i;
 
-    reg [DATA_WIDTH-1:0] preg[0:REG_ADDR_SIZE + FREE_LIST_SIZE - 1];
-    reg [REG_ADDR_WIDTH:0] free_list[0:FREE_LIST_SIZE-1];
+    reg [`DATA_BUS] preg[0:REG_ADDR_SIZE + FREE_LIST_SIZE - 1];
+    reg [`PREG_BUS] free_list[0:FREE_LIST_SIZE-1];
     reg [REG_ADDR_WIDTH+1:0] active_list[0:FREE_LIST_SIZE-1];
 
-    reg [REG_ADDR_WIDTH:0] map_table[0:REG_ADDR_SIZE-1];
+    reg [`PREG_BUS] map_table[0:REG_ADDR_SIZE-1];
     reg [FREE_LIST_WIDTH-1:0] free_list_head;
     reg [FREE_LIST_WIDTH-1:0] free_list_tail;
     reg [FREE_LIST_WIDTH-1:0] free_list_size;
@@ -82,7 +81,7 @@ module register_file#(
     assign active_list_index = active_list_tail;
 
     wire done;
-    wire [REG_ADDR_WIDTH:0] old_preg_addr;
+    wire [`PREG_BUS] old_preg_addr;
 
     wire write_enabled = dec_rw == `MEM_WRITE && (virtual_rd_addr != 0) && !stall_in;
 

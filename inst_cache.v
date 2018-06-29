@@ -40,19 +40,19 @@ module inst_cache#(
     input rst_n,
 
     // request
-    input [ADDR_WIDTH-1:0] addr,
+    input [`ADDR_BUS] addr,
     input enable, // 1 if we are requesting data
     
     // outputs
     output ready,
-    output reg [DATA_WIDTH-1:0] data,
+    output reg [`DATA_BUS] data,
     output reg data_valid,
 
     // BRAM transaction
-    output reg [ADDR_WIDTH-1:0] mem_addr,
+    output reg [`ADDR_BUS] mem_addr,
     output reg mem_enable,
 
-    input [DATA_WIDTH-1:0] mem_read,
+    input [`DATA_BUS] mem_read,
     input mem_read_valid,
     
     input mem_last
@@ -90,7 +90,7 @@ module inst_cache#(
     // cache storage
     reg [ASSO_WIDTH-1:0] timestamp[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // the visit order
     reg [TAG_WIDTH-1:0] tags[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // which group in memory
-    reg [DATA_WIDTH-1:0] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
+    reg [`DATA_BUS] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
     reg valid[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // true if this cache space has stored a block.
 
     assign ready = state == STATE_READY;

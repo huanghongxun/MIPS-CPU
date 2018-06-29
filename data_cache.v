@@ -39,27 +39,27 @@ module data_cache#(
     input rst_n,
 
     // request
-    input [ADDR_WIDTH-1:0] addr,
+    input [`ADDR_BUS] addr,
     input enable, // 1 if we are requesting data
     input rw,
     input [1:0] mem_width,
     input sign_extend,
 
-    input [DATA_WIDTH-1:0] write,
-    output reg [DATA_WIDTH-1:0] read,
+    input [`DATA_BUS] write,
+    output reg [`DATA_BUS] read,
     output reg rw_valid = 0,
 
     output ready,
 
     // BRAM transaction
-    output reg [ADDR_WIDTH-1:0] mem_addr,
+    output reg [`ADDR_BUS] mem_addr,
     output reg mem_enable,
     output reg mem_rw,
 
-    input [DATA_WIDTH-1:0] mem_read,
+    input [`DATA_BUS] mem_read,
     input mem_read_valid,
 
-    output reg [DATA_WIDTH-1:0] mem_write,
+    output reg [`DATA_BUS] mem_write,
     input mem_write_req_input,
 
     
@@ -108,7 +108,7 @@ module data_cache#(
 
     // cache storage
     reg [TAG_WIDTH-1:0] tags[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // which group in memory
-    reg [DATA_WIDTH-1:0] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
+    reg [`DATA_BUS] blocks[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1][0:BLOCK_SIZE-1]; // cached blocks
     reg valid[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // true if this cache space has stored a block.
     reg dirty[0:INDEX_SIZE-1][0:ASSOCIATIVITY-1]; // is cached block dirty.
     
@@ -120,7 +120,7 @@ module data_cache#(
     wire cache_miss = !cache_hit && enable && !rw_valid;
 
     wire populate = rw_reg == `MEM_WRITE && mem_read_valid && cnt == block_offset_reg && state == STATE_POPULATE;
-    wire [DATA_WIDTH-1:0] populate_data = populate ? write_reg : mem_read;
+    wire [`DATA_BUS] populate_data = populate ? write_reg : mem_read;
         
     localparam LOCATION_X = {ASSO_WIDTH{1'bx}};
     localparam TAG_X = {TAG_WIDTH{1'bx}};
@@ -141,7 +141,7 @@ module data_cache#(
     end
     
     task write_task;
-        input [ADDR_WIDTH-1:0] addr;
+        input [`ADDR_BUS] addr;
         input [INDEX_WIDTH       -1:0] block_index;
         input [BLOCK_OFFSET_WIDTH-1:0] block_offset;
         input [                   1:0] word_offset;
@@ -183,8 +183,8 @@ module data_cache#(
     endtask
     
     task read_task;
-        input [ADDR_WIDTH-1:0] addr;
-        input [DATA_WIDTH-1:0] data;
+        input [`ADDR_BUS] addr;
+        input [`DATA_BUS] data;
         input [           1:0] word_offset;
         input [           1:0] mem_width;
         input                  sign_extend;

@@ -73,6 +73,17 @@
 `define TEST_FAIL 1
 `define TEST_DONE 2
 
+/*****************
+ *               *
+ *      Bus      *
+ *               *
+ *****************/
+`define DATA_BUS DATA_WIDTH-1:0
+`define ADDR_BUS ADDR_WIDTH-1:0
+`define ALU_OP_BUS ALU_OP_WIDTH-1:0
+`define VREG_BUS REG_ADDR_WIDTH-1:0
+`define PREG_BUS REG_ADDR_WIDTH:0
+
 /******************
  *                *
  *   Prediction   *

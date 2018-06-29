@@ -37,55 +37,55 @@ module memory_controller#(
     input rst_n,
 
     // inst cache
-    input [ADDR_WIDTH-1:0] imem_addr,
+    input [`ADDR_BUS] imem_addr,
     input imem_enable,
 
-    output reg [DATA_WIDTH-1:0] imem_read,
+    output reg [`DATA_BUS] imem_read,
     output reg imem_read_valid,
 
     output reg imem_last,
 
     // data cache
-    input [ADDR_WIDTH-1:0] dmem_addr,
+    input [`ADDR_BUS] dmem_addr,
     input dmem_enable,
     input dmem_rw,
 
-    input [DATA_WIDTH-1:0] dmem_write,
+    input [`DATA_BUS] dmem_write,
     output reg dmem_req_data, // Request data-cache to transmit data.
 
-    output reg [DATA_WIDTH-1:0] dmem_read,
+    output reg [`DATA_BUS] dmem_read,
     output reg dmem_read_valid,
 
     output reg dmem_last,
 
     // external storage
-    input [ADDR_WIDTH-1:0] external_addr,
+    input [`ADDR_BUS] external_addr,
     input external_enable,
     input external_rw,
     
     input external_op_size,
     input external_finishes_op,
 
-    input [DATA_WIDTH-1:0] external_write,
+    input [`DATA_BUS] external_write,
     output reg external_req_data, // Request external storage to transmit data to ram
     
-    output reg [DATA_WIDTH-1:0] external_read,
+    output reg [`DATA_BUS] external_read,
     output reg external_read_valid, 
 
     output reg external_last,
 
     // ram
-    output reg [ADDR_WIDTH-1:0] mem_addr,
+    output reg [`ADDR_BUS] mem_addr,
     output reg mem_enable,
     output reg mem_rw,
     
     output reg mem_op_size,
     output reg mem_finishes_op,
 
-    output reg [DATA_WIDTH-1:0] mem_write,
+    output reg [`DATA_BUS] mem_write,
     input mem_write_req_input,
 
-    input [DATA_WIDTH-1:0] mem_read,
+    input [`DATA_BUS] mem_read,
     input mem_read_valid,
 
     input mem_last

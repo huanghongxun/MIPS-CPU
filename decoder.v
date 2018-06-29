@@ -30,17 +30,17 @@ module decoder #(
 )(
     input stall,
 
-    input [ADDR_WIDTH-1:0] pc,
-    input [DATA_WIDTH-1:0] inst,
+    input [`ADDR_BUS] pc,
+    input [`DATA_BUS] inst,
 
-    output reg [REG_ADDR_WIDTH-1:0] rs = 0, // register index of rs
-    output reg [REG_ADDR_WIDTH-1:0] rt = 0, // register index of rt
-    output reg [REG_ADDR_WIDTH-1:0] rd = 0, // register index of rd
+    output reg [`VREG_BUS] rs = 0, // register index of rs
+    output reg [`VREG_BUS] rt = 0, // register index of rt
+    output reg [`VREG_BUS] rd = 0, // register index of rd
     output reg rs_enable = 0, // 1 if rs is valid
     output reg rt_enable = 0, // 1 if rt is valid
-    output reg [DATA_WIDTH-1:0] imm = 0, // immediate for I-type instruction.
+    output reg [`DATA_BUS] imm = 0, // immediate for I-type instruction.
     output reg [ALU_OP_WIDTH-1:0] func = 0, // ALU operation id.
-    output reg [ADDR_WIDTH-1:0] addr = 0, // jump_target for J-type instruction.
+    output reg [`ADDR_BUS] addr = 0, // jump_target for J-type instruction.
     output reg [1:0] exec_src = 0, // ALU, IPU, FPU, External
     output reg b_ctrl = 0, // 1 if use immediate value instead of rt
     output reg [1:0] mem_width = 0, // 0 - word, 1 - halfword, 2 - byte
