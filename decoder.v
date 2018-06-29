@@ -147,10 +147,10 @@ module decoder #(
 `endif
                     end
                     6'b001001: begin // jalr
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 31, `ALU_OP_ADDU, (pc + 1), 0, `EX_ALU, `B_IMM, `MEM_WORD, `MEM_READ, `MEM_DIS, `ZERO_EXT, `WB_ALU, `REG_WB, `JMP_REG, `BR);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 31, `ALU_OP_ADDU, (pc + 2), 0, `EX_ALU, `B_IMM, `MEM_WORD, `MEM_READ, `MEM_DIS, `ZERO_EXT, `WB_ALU, `REG_WB, `JMP_REG, `BR);
 `ifdef DEBUG_DEC
                         if (!stall)
-                            $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 1));
+                            $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 2));
 `endif
                     end
                     6'b010000: begin // mfhi
@@ -306,10 +306,10 @@ module decoder #(
             end
             6'b000011: begin // jal
                 // since address width less than 32, use pc <- addr instead of pc <- { pc[31:28], addr }.
-                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `ALU_OP_ADDU, (pc + 1), addr_wire, `EX_ALU, `B_IMM, `MEM_WORD, `MEM_READ, `MEM_DIS, `ZERO_EXT, `WB_ALU, `REG_WB, `JMP, `BR);
+                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `ALU_OP_ADDU, (pc + 2), addr_wire, `EX_ALU, `B_IMM, `MEM_WORD, `MEM_READ, `MEM_DIS, `ZERO_EXT, `WB_ALU, `REG_WB, `JMP, `BR);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 1), addr_wire);
+                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 2), addr_wire);
 `endif
             end
             6'b000100: begin // beq
