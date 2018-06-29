@@ -59,33 +59,31 @@ module decoder #(
     wire [4:0] rd_wire = inst[15:11]; // register index of rd for R-type instruction.
     wire [4:0] shamt_wire = inst[10:6]; // shift amount field for R-type instruction.
     wire [5:0] funct_wire = inst[5:0]; // function field for R-type instruction.
-    wire [15:0] imm_wire = inst[15:0]; // immediate for I-type instruction, or offset for J-type instruction.
+    wire [15:0] imm_wire = inst[15:0]; // immediate for arithmetic instruction, or offset for branch instructions.
     wire [25:0] addr_wire = inst[25:0]; // jump target address(instruction index) for J-type instruction.
 
     `define decode(rs_wire, rs_enable_wire, rt_wire, rt_enable_wire, rd_wire, func_wire, imm_wire, addr_wire, exec_src_wire, b_ctrl_wire, mem_width_wire, mem_rw_wire, mem_enable_wire, sign_extend_wire, wb_src_wire, wb_reg_wire, jump_wire, branch_wire) \
-        rs <= rs_wire; \
-        rs_enable <= rs_enable_wire; \
-        rt <= rt_wire; \
-        rt_enable <= rt_enable_wire; \
-        rd <= rd_wire; \
-        func <= func_wire; \
-        imm <= imm_wire; \
-        addr <= addr_wire; \
-        exec_src <= exec_src_wire; \
-        b_ctrl <= b_ctrl_wire; \
-        mem_width <= mem_width_wire; \
-        mem_rw <= mem_rw_wire; \
-        mem_enable <= mem_enable_wire; \
-        sign_extend <= sign_extend_wire; \
-        wb_src <= wb_src_wire; \
-        wb_reg <= wb_reg_wire; \
-        jump <= jump_wire; \
-        branch <= branch_wire
+        rs = rs_wire; \
+        rs_enable = rs_enable_wire; \
+        rt = rt_wire; \
+        rt_enable = rt_enable_wire; \
+        rd = rd_wire; \
+        func = func_wire; \
+        imm = imm_wire; \
+        addr = addr_wire; \
+        exec_src = exec_src_wire; \
+        b_ctrl = b_ctrl_wire; \
+        mem_width = mem_width_wire; \
+        mem_rw = mem_rw_wire; \
+        mem_enable = mem_enable_wire; \
+        sign_extend = sign_extend_wire; \
+        wb_src = wb_src_wire; \
+        wb_reg = wb_reg_wire; \
+        jump = jump_wire; \
+        branch = branch_wire
 
     always @(inst, pc)
     begin
-        `decode(rs_wire, 0, rt_wire, 0, rd_wire, funct_wire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
-
         case (op_wire)
             6'b000000:
                 case (funct_wire)
@@ -266,6 +264,7 @@ module decoder #(
 `endif
                     end
                     default: begin
+                        `decode(rs_wire, 0, rt_wire, 0, rd_wire, funct_wire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown -> %b", pc, inst);
@@ -290,6 +289,7 @@ module decoder #(
                     end
                     default: begin
                         // should jump to exception handler.
+                        `decode(rs_wire, 0, rt_wire, 0, rd_wire, funct_wire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown instruction %b", pc, inst);
@@ -420,6 +420,7 @@ module decoder #(
 `endif
                     end
                     default: begin
+                        `decode(rs_wire, 0, rt_wire, 0, rd_wire, funct_wire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                         $display("%x: Invalid test instruction func %d", pc, rs_wire);
@@ -484,6 +485,7 @@ module decoder #(
 `endif
             end
             default: begin
+                `decode(rs_wire, 0, rt_wire, 0, rd_wire, funct_wire, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                 if (!stall && op_wire != 'bx)
                     $display("%x: unknown instruction: %b", pc, inst);    

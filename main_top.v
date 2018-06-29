@@ -58,13 +58,13 @@ module main_top(
     wire [7:0] transmit_data;
     wire transmit;
     
-    bram_basys3 bram(.clka(clk),
+    /*bram_basys3 bram(.clka(clk),
                               .ena(bram_ena),
                               .wea(bram_wea),
                               .addra(bram_addra),
                               .dina(bram_dina),
                               .douta(bram_douta));
-    
+    */
     mips_cpu #(.DATA_WIDTH(DATA_WIDTH),
                .ADDR_WIDTH(ADDR_WIDTH),
                .REG_ADDR_WIDTH(REG_ADDR_WIDTH),

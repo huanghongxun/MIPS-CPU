@@ -74,11 +74,11 @@ module mips_cpu #(
 
     wire [`ADDR_BUS] dec_pc;
     wire [`DATA_BUS] dec_inst;
-    wire [REG_`ADDR_BUS] dec_vrs_addr;
-    wire [REG_`ADDR_BUS] dec_vrt_addr;
+    wire [`VREG_BUS] dec_vrs_addr;
+    wire [`VREG_BUS] dec_vrt_addr;
     wire [`DATA_BUS] dec_rs_data;
     wire [`DATA_BUS] dec_rt_data;
-    wire [REG_`ADDR_BUS] dec_virtual_write_addr;
+    wire [`VREG_BUS] dec_virtual_write_addr;
     wire [`PREG_BUS] dec_prs_addr;
     wire [`PREG_BUS] dec_prt_addr;
     wire [`PREG_BUS] dec_physical_write_addr;
@@ -117,7 +117,7 @@ module mips_cpu #(
     wire exec_branch;
     wire [`ADDR_BUS] exec_branch_target;
     
-    wire [REG_`ADDR_BUS] exec_virtual_write_addr;
+    wire [`VREG_BUS] exec_virtual_write_addr;
     wire [`PREG_BUS] exec_physical_write_addr;
     wire [FREE_LIST_WIDTH-1:0] exec_active_list_index;
 
@@ -159,7 +159,7 @@ module mips_cpu #(
     wire dmem_mem_rw_valid;
     reg dmem_done;
     
-    wire [REG_`ADDR_BUS] dmem_virtual_write_addr;
+    wire [`VREG_BUS] dmem_virtual_write_addr;
     wire [`PREG_BUS] dmem_physical_write_addr;
     wire [FREE_LIST_WIDTH-1:0] dmem_active_list_index;
     
@@ -170,7 +170,7 @@ module mips_cpu #(
     
     wire wb_wb_reg;
     wire [`PREG_BUS] wb_physical_write_addr;
-    wire [REG_`ADDR_BUS] wb_virtual_write_addr;
+    wire [`VREG_BUS] wb_virtual_write_addr;
     wire [`DATA_BUS] wb_write;
     wire [FREE_LIST_WIDTH-1:0] wb_active_list_index;
     
@@ -454,7 +454,7 @@ module mips_cpu #(
                 dcache(.clk(clk),
                        .rst_n(rst_n),
                        
-                       .addr(dmem_res),
+                       .addr(dmem_res[`ADDR_BUS]),
                        .enable(dmem_mem_enable),
                        .rw(dmem_mem_rw),
 
