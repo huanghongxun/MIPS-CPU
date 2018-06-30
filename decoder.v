@@ -302,7 +302,7 @@ module decoder #(
 `endif
                     end
                     default: begin
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown -> %b", pc, raw_inst);
@@ -327,7 +327,7 @@ module decoder #(
                     end
                     default: begin
                         // should jump to exception handler.
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown instruction %b", pc, raw_inst);
@@ -380,7 +380,7 @@ module decoder #(
                     end
                     default: begin
                         // should jump to exception handler.
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown instruction %b", pc, raw_inst);
@@ -489,50 +489,72 @@ module decoder #(
 `endif
             end
             6'b010000: begin // interaction with coprocessor0
-                case (rs_wire)
-                    5'b00000: begin // mfc0 rt, rd
-                        `decode(0, `RS_DIS, 0, `RS_DIS, rd_wire, `REG_WB, `INST_MFC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `MEM_DIS, `WB_ALU);
+                if (raw_inst[25])
+                begin
+                    case (funct_wire)
+                        6'b011000: begin // eret
+                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_ERET, `ALU_OP_NOP, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU);
 `ifdef DEBUG_DEC
-                if (!stall)
-                    $display("%x: mfc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);
+                            if (!stall)
+                                $display("%x: eret", pc);
 `endif
-                    end
-                    5'b00100: begin // mtc0
-                        `decode(rt_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_MTC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `MEM_DIS, `WB_ALU);
+                        end
+                        6'b101100: begin // test pass
+                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_PASS, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
 `ifdef DEBUG_DEC
-                if (!stall)
-                    $display("%x: mtc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);
+                            if (!stall)
+                                $display("%x: test_pass(%d)", pc, $signed(imm_wire));
 `endif
-                    end
-                    5'b10000: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_PASS, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
+                        end
+                        6'b101101: begin // test fail
+                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_FAIL, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
 `ifdef DEBUG_DEC
-                        if (!stall)
-                            $display("%x: test_pass(%d)", pc, $signed(imm_wire));
+                            if (!stall)
+                                $display("%x: test_fail(%d)", pc, $signed(imm_wire));
 `endif
-                    end
-                    5'b10001: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_FAIL, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
+                        end
+                        6'b101110: begin // test done
+                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_DONE, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
 `ifdef DEBUG_DEC
-                        if (!stall)
-                            $display("%x: test_fail(%d)", pc, $signed(imm_wire));
+                            if (!stall)
+                                $display("%x: test_done(%d)", pc, $signed(imm_wire));
 `endif
-                    end
-                    5'b10010: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_DONE, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU);
+                        end
+                        default: begin
+                            `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
-                        if (!stall)
-                            $display("%x: test_done(%d)", pc, $signed(imm_wire));
+                            if (!stall)
+                                $display("%x: unknown instruction: %b", pc, raw_inst);
 `endif
-                    end
-                    default: begin
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        end
+                    endcase
+                end
+                else
+                begin
+                    case (rs_wire)
+                        5'b00000: begin // mfc0 rt, rd
+                            `decode(0, `RS_DIS, 0, `RS_DIS, rd_wire, `REG_WB, `INST_MFC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `MEM_DIS, `WB_ALU);
 `ifdef DEBUG_DEC
-                        if (!stall)
-                        $display("%x: unknown instruction: %b", pc, raw_inst);
+                            if (!stall)
+                                $display("%x: mfc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);
 `endif
-                    end
-                endcase
+                        end
+                        5'b00100: begin // mtc0
+                            `decode(rt_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_MTC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `MEM_DIS, `WB_ALU);
+`ifdef DEBUG_DEC
+                            if (!stall)
+                                $display("%x: mtc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);
+`endif
+                        end
+                        default: begin
+                            `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+`ifdef DEBUG_DEC
+                            if (!stall)
+                                $display("%x: unknown instruction: %b", pc, raw_inst);
+`endif
+                        end
+                    endcase
+                end
             end
             6'b100000: begin // lb
                 `decode(rs_wire, `RS_EN, 0, `RT_DIS, rt_wire, `REG_WB, `INST_LB, `ALU_OP_ADD, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_EN, `WB_MEM);
@@ -619,7 +641,7 @@ module decoder #(
 `endif
             end
             default: begin
-                `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                 if (!stall && op_wire != 'bx)
                     $display("%x: unknown instruction: %b", pc, raw_inst);    
