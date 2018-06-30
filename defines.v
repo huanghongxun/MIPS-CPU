@@ -174,13 +174,14 @@
 `define ALU_OP_LU   5'b10110
 //`define ALU_OP_?? 5'b10111
 //`define ALU_OP_?? 5'b11000
-//`define ALU_OP_?? 5'b11001
-`define ALU_OP_LE   5'b11010
-`define ALU_OP_GT   5'b11011
-`define ALU_OP_EQ   5'b11100
-`define ALU_OP_NE   5'b11101
-`define ALU_OP_LT   5'b11110
-`define ALU_OP_GE   5'b11111
+`define ALU_OP_LE   5'b11000
+`define ALU_OP_GT   5'b11001
+`define ALU_OP_EQ   5'b11010
+`define ALU_OP_NE   5'b11011
+`define ALU_OP_LT   5'b11100
+`define ALU_OP_LTU  5'b11101
+`define ALU_OP_GE   5'b11110
+`define ALU_OP_GEU  5'b11111
 
 
 /********************
@@ -286,6 +287,8 @@
 `define INST_JAL  7'b0101110
 `define INST_JR   7'b0101111
 `define INST_JALR 7'b0100111
+
+`define INST_SYSCALL 7'b0101000
 
 `define INST_TEQ  7'b0110000
 `define INST_TGE  7'b0110001

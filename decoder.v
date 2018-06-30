@@ -148,6 +148,13 @@ module decoder #(
                             $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 2));
 `endif
                     end
+                    6'b001100: begin // syscall
+                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_SYSCALL, `ALU_OP_NOP, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: syscall", pc);
+`endif
+                    end
                     6'b010000: begin // mfhi
                         `decode(0, `RS_DIS, 0, `RT_DIS, rd_wire, `REG_WB, `INST_MFHI, `ALU_OP_MFHI, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
 `ifdef DEBUG_DEC
@@ -261,10 +268,44 @@ module decoder #(
 `endif
                     end
                     6'b110000: begin // TGE
-                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TEQ, `ALU_OP_EQ, )
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TGE, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tge, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
+                    6'b110001: begin // TGEU
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TGEU, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tgeu, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
+                    6'b110010: begin // TLT
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TLT, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tlt, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
+                    6'b110011: begin // TLTU
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TLTU, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tltu, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
+                    6'b110100: begin // TEQ
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TEQ, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: teq, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
+                    6'b110110: begin // TNE
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TNE, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tne, rs: %d, rt: %d", pc, rs_wire, rt_wire);
+`endif
                     end
                     default: begin
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: unknown -> %b", pc, raw_inst);
@@ -296,6 +337,60 @@ module decoder #(
 `endif
                     end
                 endcase
+            6'b000001: begin // regimm
+                case (rt_wire)
+                    5'b01000: begin // tgei
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TGE, `ALU_OP_GE, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tgei, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    5'b01001: begin // tgeiu
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TGEU, `ALU_OP_GEU, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tgeiu, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    5'b01010: begin // tlti
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TLT, `ALU_OP_LT, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tlti, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    5'b01011: begin // tltiu
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TLTU, `ALU_OP_LTU, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tltiu, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    5'b01100: begin // teqi
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TEQ, `ALU_OP_EQ, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: teqi, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    5'b01110: begin // tnei
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_TNE, `ALU_OP_NE, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: tnei, rs: %d, imm: %d", pc, rs_wire, $signed(imm_wire));
+`endif
+                    end
+                    default: begin
+                        // should jump to exception handler.
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: unknown instruction %b", pc, raw_inst);
+`endif
+                    end
+                endcase
+            end
             6'b000010: begin // j
                 // since address width less than 32, use pc <- addr instead of pc <- { pc[31:28], addr }.
                 `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_J, `ALU_OP_ADDU, 0, addr_wire, `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JMP, `BR, `TRAP_N);
@@ -434,7 +529,7 @@ module decoder #(
 `endif
                     end
                     default: begin
-                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                         if (!stall)
                         $display("%x: unknown instruction: %b", pc, raw_inst);
@@ -527,7 +622,7 @@ module decoder #(
 `endif
             end
             default: begin
-                `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+                `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
 `ifdef DEBUG_DEC
                 if (!stall && op_wire != 'bx)
                     $display("%x: unknown instruction: %b", pc, raw_inst);    

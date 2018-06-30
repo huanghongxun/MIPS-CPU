@@ -202,17 +202,31 @@ module arithmetic_logic_unit #(
 `endif
                 end
                 `ALU_OP_LT: begin
-                    branch = $signed(rs) < $signed(rt) ? 1 : 0;
+                    rd = $signed(rs) < $signed(rt) ? 1 : 0;
 `ifdef DEBUG_ALU
                     if (!stall)
                         $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), rd);
 `endif
                 end
+                `ALU_OP_LTU: begin
+                    rd = $unsigned(rs) < $unsigned(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d < %d = %d", $unsigned(rs), $unsigned(rt), rd);
+`endif
+                end
                 `ALU_OP_GE: begin
-                    branch = $signed(rs) >= $signed(rt) ? 1 : 0;
+                    rd = $signed(rs) >= $signed(rt) ? 1 : 0;
 `ifdef DEBUG_ALU
                     if (!stall)
                         $display("ALU: %d > %d = %d", $signed(rs), $signed(rt), rd);
+`endif
+                end
+                `ALU_OP_GEU: begin
+                    rd = $unsigned(rs) >= $unsigned(rt) ? 1 : 0;
+`ifdef DEBUG_ALU
+                    if (!stall)
+                        $display("ALU: %d > %d = %d", $unsigned(rs), $unsigned(rt), rd);
 `endif
                 end
                 `ALU_OP_LE: begin
