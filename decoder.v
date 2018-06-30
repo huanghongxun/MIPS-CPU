@@ -274,14 +274,14 @@ module decoder #(
             6'b000001:
                 case (rt_wire)
                     5'b00000: begin // bltz
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLT, `ALU_OP_LT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLTZ, `ALU_OP_LT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: bltz, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(addr_wire), (pc + 1 + $signed(addr_wire)));
 `endif
                     end
                     5'b00001: begin // bgez
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGE, `ALU_OP_GE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGEZ, `ALU_OP_GE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: bgez, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(addr_wire), (pc + 1 + $signed(addr_wire)));
@@ -327,14 +327,14 @@ module decoder #(
 `endif
             end
             6'b000110: begin // blez
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLE, `ALU_OP_LE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLEZ, `ALU_OP_LE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
 `ifdef DEBUG_DEC
                 if (!stall)
                     $display("%x: blez, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
 `endif
             end
             6'b000111: begin // bgtz
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGT, `ALU_OP_GT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGTZ, `ALU_OP_GT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `MEM_DIS, `WB_ALU, `JUMP_N, `BR, `TRAP_N);
 `ifdef DEBUG_DEC
                 if (!stall)
                     $display("%x: bgtz, rs: %d, offset: %x, dest: %x", pc, rs_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
