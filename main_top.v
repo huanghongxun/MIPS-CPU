@@ -42,7 +42,6 @@ module main_top(
     localparam DATA_WIDTH = 32;
     localparam ADDR_WIDTH = 16;
     localparam REG_ADDR_WIDTH = 5;
-    localparam ALU_OP_WIDTH = 5;
     localparam FREE_LIST_WIDTH = 3;
 
     wire rst_n = sw[15];
@@ -68,7 +67,6 @@ module main_top(
     mips_cpu #(.DATA_WIDTH(DATA_WIDTH),
                .ADDR_WIDTH(ADDR_WIDTH),
                .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
-               .ALU_OP_WIDTH(ALU_OP_WIDTH),
                .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
         uut(.clk(clk),
             .rst_n(rst_n),

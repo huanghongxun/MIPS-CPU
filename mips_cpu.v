@@ -21,12 +21,10 @@
 
 `include "defines.v"
 
-
 module mips_cpu #(
     parameter DATA_WIDTH = 32,
     parameter ADDR_WIDTH = 16,
     parameter REG_ADDR_WIDTH = 5,
-    parameter ALU_OP_WIDTH = 5,
     parameter FREE_LIST_WIDTH = 3,
     parameter ASSO_WIDTH = 1, // for n-way associative caching
     parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
@@ -73,7 +71,7 @@ module mips_cpu #(
     wire dec_bubble;
 
     wire [`ADDR_BUS] dec_pc;
-    wire [`DATA_BUS] dec_inst;
+    wire [`DATA_BUS] dec_raw_inst;
     wire [`VREG_BUS] dec_vrs_addr;
     wire [`VREG_BUS] dec_vrt_addr;
     wire [`DATA_BUS] dec_rs_data;
@@ -82,16 +80,14 @@ module mips_cpu #(
     wire [`PREG_BUS] dec_prs_addr;
     wire [`PREG_BUS] dec_prt_addr;
     wire [`PREG_BUS] dec_physical_write_addr;
-    wire [ALU_OP_WIDTH-1:0] dec_alu_op;
+    wire [`INST_BUS] dec_inst;
+    wire [`ALU_OP_BUS] dec_exec_op;
     wire [FREE_LIST_WIDTH-1:0] dec_active_list_index;
     wire dec_rs_enable;
     wire dec_rt_enable;
     wire [1:0] dec_exec_src;
     wire dec_b_ctrl;
-    wire [1:0] dec_mem_width;
     wire dec_mem_enable;
-    wire dec_sign_extend;
-    wire dec_mem_rw;
     wire [`DATA_BUS] dec_imm;
     wire dec_wb_src;
     wire dec_wb_reg;
@@ -106,11 +102,8 @@ module mips_cpu #(
     wire pipe_decode_flush;
     wire pipe_exec_stall;
 
-    wire [`DATA_BUS] exec_inst;
-    wire [1:0] exec_mem_width;
-    wire exec_mem_rw;
+    wire [`DATA_BUS] exec_raw_inst;
     wire exec_mem_enable;
-    wire exec_sign_extend;
     wire [1:0] exec_exec_src;
     wire exec_wb_src;
     wire exec_wb_reg;
@@ -123,7 +116,7 @@ module mips_cpu #(
 
     wire [`ADDR_BUS] exec_pc;
 
-    wire [ALU_OP_WIDTH-1:0] alu_op;
+    wire [`ALU_OP_WIDTH-1:0] alu_op;
     
     wire [`DATA_BUS] alu_rs;
     wire [`DATA_BUS] alu_rt;
@@ -142,15 +135,13 @@ module mips_cpu #(
     wire pipe_exec_flush;
     wire pipe_mem_stall;
 
-    wire [`DATA_BUS] dmem_inst;
-    wire [`ADDR_BUS] dmem_pc;
     wire [`DATA_BUS] dmem_res;
     wire [`DATA_BUS] dmem_mem_write;
     wire [`DATA_BUS] dmem_mem_read;
-    reg [`DATA_BUS] dmem_write;
-    wire [1:0] dmem_mem_width;
+    wire [`DATA_BUS] dmem_mem_read_raw;
+    reg  [`DATA_BUS] dmem_write;
+    wire [3:0] dmem_mem_sel;
     wire dmem_mem_enable;
-    wire dmem_sign_extend;
     wire dmem_mem_rw;
     wire dmem_wb_src;
     wire dmem_wb_reg;
@@ -251,31 +242,28 @@ module mips_cpu #(
                         .pc_in(fetch_pc),
                         .pc_out(dec_pc),
                         .inst_in(imem_data),
-                        .inst_out(dec_inst),
+                        .inst_out(dec_raw_inst),
                         .bubble_in(imem_data_valid),
                         .bubble_out(dec_bubble));
                             
     decoder #(.DATA_WIDTH(DATA_WIDTH),
               .ADDR_WIDTH(ADDR_WIDTH),
-              .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
-              .ALU_OP_WIDTH(ALU_OP_WIDTH))
+              .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
                 decode(.stall(pipe_decode_stall),
                         .pc(dec_pc),
-                        .inst(dec_inst),
+                        .raw_inst(dec_raw_inst),
                         .rs(dec_vrs_addr),
                         .rs_enable(dec_rs_enable),
                         .rt(dec_vrt_addr),
                         .rt_enable(dec_rt_enable),
                         .rd(dec_virtual_write_addr),
                         .imm(dec_imm),
-                        .func(dec_alu_op),
+                        .inst(dec_inst),
+                        .exec_op(dec_exec_op),
                         .addr(dec_branch_target),
                         .exec_src(dec_exec_src),
                         .b_ctrl(dec_b_ctrl),
-                        .mem_width(dec_mem_width),
-                        .mem_rw(dec_mem_rw),
                         .mem_enable(dec_mem_enable),
-                        .sign_extend(dec_sign_extend),
                         .wb_src(dec_wb_src),
                         .wb_reg(dec_wb_reg),
                         .jump(dec_jump),
@@ -312,7 +300,6 @@ module mips_cpu #(
     pipeline_dec2exec #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),
                         .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
-                        .ALU_OP_WIDTH(ALU_OP_WIDTH),
                         .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
                     pde(.clk(clk),
                         .rst_n(rst_n),
@@ -321,9 +308,11 @@ module mips_cpu #(
                         
                         .pc_in(dec_pc),
                         .pc_out(exec_pc),
+                        .raw_inst_in(dec_raw_inst),
+                        .raw_inst_out(exec_raw_inst),
                         .inst_in(dec_inst),
                         .inst_out(exec_inst),
-                        .alu_op_in(dec_alu_op),
+                        .alu_op_in(dec_exec_op),
                         .alu_op_out(alu_op),
                         .exec_src_in(dec_exec_src),
                         .exec_src_out(exec_exec_src),
@@ -331,16 +320,10 @@ module mips_cpu #(
                         .alu_rs_out(alu_rs),
                         .alu_rt_in(dec_b_ctrl ? dec_imm : forwarded_rt_data),
                         .alu_rt_out(alu_rt),
-                        .mem_width_in(dec_mem_width),
-                        .mem_width_out(exec_mem_width),
-                        .mem_rw_in(dec_mem_rw),
-                        .mem_rw_out(exec_mem_rw),
                         .mem_enable_in(dec_mem_enable),
                         .mem_enable_out(exec_mem_enable),
                         .mem_write_in(forwarded_rt_data),
                         .mem_write_out(exec_mem_write),
-                        .sign_extend_in(dec_sign_extend),
-                        .sign_extend_out(exec_sign_extend),
                         .wb_src_in(dec_wb_src),
                         .wb_src_out(exec_wb_src),
                         .wb_reg_in(dec_wb_reg),
@@ -356,8 +339,7 @@ module mips_cpu #(
                         .active_list_index_in(dec_active_list_index),
                         .active_list_index_out(exec_active_list_index));
                          
-    arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH),
-                            .ALU_OP_WIDTH(ALU_OP_WIDTH))
+    arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH))
                     alu(.stall(pipe_exec_stall),
                         .en(exec_exec_src == `EX_ALU),
                         .op(alu_op),
@@ -375,22 +357,19 @@ module mips_cpu #(
                         .flush(pipe_exec_flush),
                         .stall(pipe_mem_stall),
                         
-                        .pc_in(exec_pc),
-                        .pc_out(dmem_pc),
+                        .raw_inst_in(exec_raw_inst),
                         .inst_in(exec_inst),
-                        .inst_out(dmem_inst),
                         .alu_res_in(alu_rd),
                         .alu_res_out(dmem_res),
-                        .mem_width_in(exec_mem_width),
-                        .mem_width_out(dmem_mem_width),
-                        .sign_extend_in(exec_sign_extend),
+                        .mem_sel_out(dmem_mem_sel),
                         .sign_extend_out(dmem_sign_extend),
-                        .mem_rw_in(exec_mem_rw),
                         .mem_rw_out(dmem_mem_rw),
                         .mem_enable_in(exec_mem_enable),
                         .mem_enable_out(dmem_mem_enable),
                         .mem_write_in(exec_mem_write),
                         .mem_write_out(dmem_mem_write),
+                        .mem_read_in(dmem_mem_read_raw),
+                        .mem_read_out(dmem_mem_read),
                         .wb_src_in(exec_wb_src),
                         .wb_src_out(dmem_wb_src),
                         .wb_reg_in(exec_wb_reg),
@@ -454,15 +433,14 @@ module mips_cpu #(
                 dcache(.clk(clk),
                        .rst_n(rst_n),
                        
-                       .addr(dmem_res[`ADDR_BUS]),
+                       .addr(dmem_res[ADDR_WIDTH-1:2]),
                        .enable(dmem_mem_enable),
                        .rw(dmem_mem_rw),
 
-                       .mem_width(dmem_mem_width),
-                       .sign_extend(dmem_sign_extend),
-                       
                        .write(dmem_mem_write),
-                       .read(dmem_mem_read),
+                       .mem_sel(dmem_mem_sel),
+
+                       .read(dmem_mem_read_raw),
                        .rw_valid(dmem_mem_rw_valid),
                        
                        .ready(dmem_ready), // for memory prediction

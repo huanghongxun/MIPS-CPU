@@ -23,13 +23,12 @@
 
 // WIDTH - register width, 8, 16, 32 or 64
 module arithmetic_logic_unit #(
-    parameter DATA_WIDTH = 32,
-    parameter ALU_OP_WIDTH = 5
+    parameter DATA_WIDTH = 32
 )(
     input stall,
     input en,
     
-    input [ALU_OP_WIDTH-1:0] op,
+    input [`ALU_OP_WIDTH-1:0] op,
     input [`DATA_BUS] rs,
     input [`DATA_BUS] rt,
     output reg [`DATA_BUS] rd,
