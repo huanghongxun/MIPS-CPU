@@ -126,8 +126,7 @@ module mips_cpu #(
     wire [`DATA_BUS] forwarded_rs_data;
     wire [`DATA_BUS] forwarded_rt_data;
     
-    wire alu_branch_outcome;
-    wire exec_take_branch = exec_exec_src == `EX_ALU && exec_branch && alu_branch_outcome;
+    wire exec_take_branch = exec_exec_src == `EX_ALU && exec_branch && alu_rd;
     wire [1:0] exec_test_state;
 
     // exec2mem
@@ -197,7 +196,7 @@ module mips_cpu #(
     wire memctrl_dmem_read_valid;
     wire memctrl_dmem_last;
     
-    wire done = exec_test_state ==  `TEST_DONE;
+    wire done = exec_inst == `INST_TEST_DONE;
     
     fetch_unit fetch(.clk(clk),
                      .rst_n(rst_n),
@@ -345,9 +344,7 @@ module mips_cpu #(
                         .op(alu_op),
                         .rs(alu_rs),
                         .rt(alu_rt),
-                        .rd(alu_rd),
-                        .branch(alu_branch_outcome),
-                        .test_state(exec_test_state));
+                        .rd(alu_rd));
 
     pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),

@@ -152,9 +152,9 @@
 `define ALU_OP_SLL  5'b00000
 `define ALU_OP_SRL  5'b00001
 `define ALU_OP_SRA  5'b00010
-//`define ALU_OP_??? 5'b00011
-//`define ALU_OP_??? 5'b00100
-//`define ALU_OP_??? 5'b00101
+//`define ALU_OP_?? 5'b00011
+//`define ALU_OP_?? 5'b00100
+//`define ALU_OP_?? 5'b00101
 `define ALU_OP_MFHI 5'b00110
 `define ALU_OP_MFLO 5'b00111
 `define ALU_OP_MUL  5'b01000
@@ -171,10 +171,10 @@
 `define ALU_OP_NOR  5'b10011
 `define ALU_OP_SLT  5'b10100
 `define ALU_OP_SLTU 5'b10101
-`define ALU_OP_LU  5'b10110
-`define ALU_OP_TEST_PASS 5'b10111
-`define ALU_OP_TEST_FAIL 5'b11000
-`define ALU_OP_TEST_DONE 5'b11001
+`define ALU_OP_LU   5'b10110
+//`define ALU_OP_?? 5'b10111
+//`define ALU_OP_?? 5'b11000
+//`define ALU_OP_?? 5'b11001
 `define ALU_OP_LE   5'b11010
 `define ALU_OP_GT   5'b11011
 `define ALU_OP_EQ   5'b11100

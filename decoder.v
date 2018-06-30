@@ -413,21 +413,21 @@ module decoder #(
 `endif
                     end
                     5'b10000: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_PASS, `ALU_OP_TEST_PASS, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
+                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_PASS, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: test_pass(%d)", pc, $signed(imm_wire));
 `endif
                     end
                     5'b10001: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_FAIL, `ALU_OP_TEST_FAIL, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
+                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_FAIL, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: test_fail(%d)", pc, $signed(imm_wire));
 `endif
                     end
                     5'b10010: begin
-                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_DONE, `ALU_OP_TEST_DONE, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
+                        `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_TEST_DONE, `ALU_OP_NOP, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `MEM_DIS, `WB_ALU, `JUMP_N, `BR_N, `TRAP_N);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: test_done(%d)", pc, $signed(imm_wire));
