@@ -58,6 +58,10 @@ module pipeline_dec2exec #(
     output reg             wb_reg_out,
     input                  branch_in,
     output reg             branch_out,
+    input                  trap_in,
+    output reg             trap_out,
+    input                  illegal_in,
+    output reg             illegal_out,
     input      [`ADDR_BUS] branch_target_in,
     output reg [`ADDR_BUS] branch_target_out,
     input      [`VREG_BUS] virtual_write_addr_in,
@@ -85,6 +89,8 @@ module pipeline_dec2exec #(
             wb_src_out <= 0;
             wb_reg_out <= 0;
             branch_out <= 0;
+            trap_out <= 0;
+            illegal_out <= 0;
             branch_target_out <= 0;
             virtual_write_addr_out <= 0;
             physical_write_addr_out <= 0;
@@ -109,6 +115,8 @@ module pipeline_dec2exec #(
                     wb_src_out <= 0;
                     wb_reg_out <= 0;
                     branch_out <= 0;
+                    trap_out <= 0;
+                    illegal_out <= 0;
                     branch_target_out <= 0;
                     virtual_write_addr_out <= 0;
                     physical_write_addr_out <= 0;
@@ -129,6 +137,8 @@ module pipeline_dec2exec #(
                     wb_src_out <= wb_src_in;
                     wb_reg_out <= wb_reg_in;
                     branch_out <= branch_in;
+                    trap_out <= trap_in;
+                    illegal_out <= illegal_in;
                     branch_target_out <= branch_target_in;
                     virtual_write_addr_out <= virtual_write_addr_in;
                     physical_write_addr_out <= physical_write_addr_in;

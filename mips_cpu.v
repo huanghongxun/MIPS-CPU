@@ -91,7 +91,7 @@ module mips_cpu #(
     wire [`DATA_BUS] dec_imm;
     wire dec_wb_src;
     wire dec_wb_reg;
-    wire dec_branch;
+    wire dec_branch, dec_trap, dec_illegal;
     wire [1:0] dec_jump;
     wire [`ADDR_BUS] dec_branch_target;
     
@@ -107,7 +107,7 @@ module mips_cpu #(
     wire [1:0] exec_exec_src;
     wire exec_wb_src;
     wire exec_wb_reg;
-    wire exec_branch;
+    wire exec_branch, exec_trap, exec_illegal;
     wire [`ADDR_BUS] exec_branch_target;
     
     wire [`VREG_BUS] exec_virtual_write_addr;
@@ -127,6 +127,7 @@ module mips_cpu #(
     wire [`DATA_BUS] forwarded_rt_data;
     
     wire exec_take_branch = exec_exec_src == `EX_ALU && exec_branch && alu_rd;
+    wire exec_take_trap = exec_exec_src == `EX_ALU && exec_trap && alu_rd;
     wire [1:0] exec_test_state;
 
     // exec2mem
@@ -266,7 +267,9 @@ module mips_cpu #(
                         .wb_src(dec_wb_src),
                         .wb_reg(dec_wb_reg),
                         .jump(dec_jump),
-                        .branch(dec_branch));
+                        .branch(dec_branch),
+                        .trap(dec_trap),
+                        .illegal(dec_illegal));
                           
 
     register_file #(.DATA_WIDTH(DATA_WIDTH),
@@ -329,6 +332,10 @@ module mips_cpu #(
                         .wb_reg_out(exec_wb_reg),
                         .branch_in(dec_branch),
                         .branch_out(exec_branch),
+                        .trap_in(dec_trap),
+                        .trap_out(exec_trap),
+                        .illegal_in(dec_illegal),
+                        .illegal_out(exec_illegal),
                         .branch_target_in(dec_jump == `JMP_REG ? forwarded_rs_data[`ADDR_BUS] : dec_branch_target),
                         .branch_target_out(exec_branch_target),
                         .virtual_write_addr_in(dec_virtual_write_addr),

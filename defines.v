@@ -169,9 +169,7 @@
 `define ALU_OP_OR   5'b10001
 `define ALU_OP_XOR  5'b10010
 `define ALU_OP_NOR  5'b10011
-`define ALU_OP_SLT  5'b10100
-`define ALU_OP_SLTU 5'b10101
-`define ALU_OP_LU   5'b10110
+`define ALU_OP_LU   5'b10100
 //`define ALU_OP_?? 5'b10111
 //`define ALU_OP_?? 5'b11000
 `define ALU_OP_LE   5'b11000
