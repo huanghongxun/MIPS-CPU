@@ -62,12 +62,15 @@
 `define REG_WB 1
 `define REG_N 0
 
-`define JMP_REG 2
-`define JMP 1
-`define JMP_N 0
+`define JUMP_REG 2
+`define JUMP 1
+`define JUMP_N 0
 
 `define BR 1
 `define BR_N 0
+
+`define TRAP 1
+`define TRAP_N 0
 
 `define TEST_PASS 0
 `define TEST_FAIL 1
@@ -172,12 +175,12 @@
 `define ALU_OP_TEST_PASS 5'b10111
 `define ALU_OP_TEST_FAIL 5'b11000
 `define ALU_OP_TEST_DONE 5'b11001
-`define ALU_OP_BLE  5'b11010
-`define ALU_OP_BGT  5'b11011
-`define ALU_OP_BEQ  5'b11100
-`define ALU_OP_BNE  5'b11101
-`define ALU_OP_BLT  5'b11110
-`define ALU_OP_BGE  5'b11111
+`define ALU_OP_LE   5'b11010
+`define ALU_OP_GT   5'b11011
+`define ALU_OP_EQ   5'b11100
+`define ALU_OP_NE   5'b11101
+`define ALU_OP_LT   5'b11110
+`define ALU_OP_GE   5'b11111
 
 
 /********************
@@ -283,3 +286,13 @@
 `define INST_JAL  7'b0101110
 `define INST_JR   7'b0101111
 `define INST_JALR 7'b0100111
+
+`define INST_TEQ  7'b0110000
+`define INST_TGE  7'b0110001
+`define INST_TGEU 7'b0110010
+`define INST_TLT  7'b0110011
+`define INST_TLTU 7'b0110100
+`define INST_TNE  7'b0110101
+
+`define INST_MTC0 7'b0111110
+`define INST_MFC0 7'b0111111
