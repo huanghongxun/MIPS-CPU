@@ -411,7 +411,7 @@ module mips_cpu #(
             dmem_write <= dmem_res; // ALU result passed through pipeline.
             dmem_done <= 1;
         end
-        else if (dmem_wb_src == `WB_MEM) // if this instruction is load-like inst.
+        else // if this instruction is load-like inst.
         begin
             dmem_write <= dmem_mem_read; // write the value read from memory.
             dmem_done <= dmem_mem_rw_valid; // we write the value if memory signals that the value is valid.

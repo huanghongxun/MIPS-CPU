@@ -34,12 +34,12 @@ module arithmetic_logic_unit #(
     input [`DATA_BUS] rt,
     output reg [`DATA_BUS] rd,
     output reg branch,
-    output reg [1:0] test_state = 0
+    output reg [1:0] test_state
     );
 
     reg [`DATA_BUS] hi = 0, lo = 0;
     
-    always @(op, rs, rt, hi, lo, en)
+    always @*
     begin
         if (en)
         begin
@@ -324,9 +324,9 @@ module arithmetic_logic_unit #(
         end
         else
         begin
-            rd <= 0;
-            branch <= 0;
-            test_state <= 0;
+            rd = 0;
+            branch = 0;
+            test_state = 0;
         end
     end
 endmodule

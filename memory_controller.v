@@ -109,6 +109,8 @@ module memory_controller#(
         dmem_req_data <= 0;
         dmem_last <= 0;
         dmem_read <= 'bx;
+        external_read <= 'bx;
+        external_read_valid <= 0;
         external_req_data <= 0;
         external_last <= 0;
         mem_enable <= 0;
