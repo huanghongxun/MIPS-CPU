@@ -166,20 +166,6 @@ module arithmetic_logic_unit #(
                         $display("ALU: %d ~| %d = %d", $signed(rs), $signed(rt), $signed(rd));
 `endif
                 end
-                `ALU_OP_SLT: begin
-                    rd = $signed(rs) < $signed(rt) ? 1 : 0;
-`ifdef DEBUG_ALU
-                    if (!stall)
-                        $display("ALU: %d < %d = %d", $signed(rs), $signed(rt), rd);
-`endif
-                end
-                `ALU_OP_SLTU: begin
-                    rd = $unsigned(rs) < $unsigned(rt) ? 1 : 0;
-`ifdef DEBUG_ALU
-                    if (!stall)
-                        $display("ALU: %d < %d = %d", $unsigned(rs), $unsigned(rt), rd);
-`endif
-                end
                 `ALU_OP_LU: begin
                     rd = rt << 16;
 `ifdef DEBUG_ALU

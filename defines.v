@@ -96,6 +96,50 @@
 `define PREDICT_LOCAL 1
 `define PREDICT_GSHARE 2
 
+/*******************
+ *                 *
+ *   Coprocessor   *
+ *                 *
+ *******************/
+ 
+`define CP0_REG_COUNT 9
+`define CP0_REG_COMPARE 11
+`define CP0_REG_STATUS 12
+`define CP0_REG_CAUSE 13
+`define CP0_REG_EPC 14
+`define CP0_REG_PRID 15
+`define CP0_REG_CONFIG 16
+
+/******************
+ *                *
+ *   Exceptions   *
+ *                *
+ ******************/
+ 
+`define EXCEPT_INTERRUPT 32'h00000001
+`define EXCEPT_SYSCALL 32'h00000008
+`define EXCEPT_ILLEGAL 32'h0000000a
+`define EXCEPT_OVERFLOW 32'h0000000c
+`define EXCEPT_TRAP    32'h0000000d
+`define EXCEPT_ERET    32'h0000000e
+ 
+`define EXCEPT_INTERRUPT_ADDR 32'h00000020
+`define EXCEPT_SYSCALL_ADDR 32'h00000040
+`define EXCEPT_ILLEGAL_ADDR 32'h00000040
+`define EXCEPT_OVERFLOW_ADDR 32'h00000040
+`define EXCEPT_TRAP_ADDR    32'h00000040
+
+`define CODE_INT 0 // Interrupt
+`define CODE_ADDRL 4 // Load from an illegal address
+`define CODE_ADDRS 5 // Store to an illegal address
+`define CODE_IBUS 6 // Bus error on instruction fetch
+`define CODE_DBUS 7 // Bus error on data reference
+`define CODE_SYS 8 // syscall executed
+`define CODE_BKPT 9 // break executed
+`define CODE_RI 10 // Reserved instruction
+`define CODE_OVF 12 // Arithmetic overflow
+`define CODE_TRAP 13 // trap instruction executed
+
 /**************************
  *                        *
  *   Exec Stage Op-code   *
@@ -149,10 +193,9 @@
 `define FPU_OP_CGED 5'b11101
     
 `define ALU_OP_NOP  5'b00000
-`define ALU_OP_SLL  5'b00000
-`define ALU_OP_SRL  5'b00001
-`define ALU_OP_SRA  5'b00010
-//`define ALU_OP_?? 5'b00011
+`define ALU_OP_SLL  5'b00001
+`define ALU_OP_SRL  5'b00010
+`define ALU_OP_SRA  5'b00011
 //`define ALU_OP_?? 5'b00100
 //`define ALU_OP_?? 5'b00101
 `define ALU_OP_MFHI 5'b00110
@@ -170,8 +213,9 @@
 `define ALU_OP_XOR  5'b10010
 `define ALU_OP_NOR  5'b10011
 `define ALU_OP_LU   5'b10100
+//`define ALU_OP_?? 5'b10101
+//`define ALU_OP_?? 5'b10110
 //`define ALU_OP_?? 5'b10111
-//`define ALU_OP_?? 5'b11000
 `define ALU_OP_LE   5'b11000
 `define ALU_OP_GT   5'b11001
 `define ALU_OP_EQ   5'b11010
