@@ -327,6 +327,31 @@ module mips_cpu #(
                             
                             .stall_out(regfile_stall));
 
+    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH),
+                      .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+                forward(.dec_rs_enable(dec_rs_enable),
+                        .dec_prs_addr(dec_prs_addr),
+                        .dec_rs_data(dec_rs_data),
+                        .dec_rt_enable(dec_rt_enable),
+                        .dec_prt_addr(dec_prt_addr),
+                        .dec_rt_data(dec_rt_data),
+
+                        .exec_wb_reg(exec_wb_reg),
+                        .exec_exec_src(exec_exec_src),
+                        .exec_write_addr(exec_physical_write_addr),
+                        .exec_write(exec_res),
+                        
+                        .mem_wb_reg(dmem_wb_reg),
+                        .mem_write_addr(dmem_physical_write_addr),
+                        .mem_write(dmem_write),
+
+                        .wb_wb_reg(wb_wb_reg),
+                        .wb_write_addr(wb_physical_write_addr),
+                        .wb_write(wb_write),
+
+                        .dec_rs_override(forwarded_rs_data),
+                        .dec_rt_override(forwarded_rt_data));
+
     pipeline_dec2exec #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),
                         .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
@@ -640,31 +665,6 @@ module mips_cpu #(
                     .cfg(cp0_cfg),
                     
                     .timer_interrupt(cp0_timer_interrupt));
-
-    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH),
-                      .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
-                forward(.dec_rs_enable(dec_rs_enable),
-                        .dec_prs_addr(dec_prs_addr),
-                        .dec_rs_data(dec_rs_data),
-                        .dec_rt_enable(dec_rt_enable),
-                        .dec_prt_addr(dec_prt_addr),
-                        .dec_rt_data(dec_rt_data),
-
-                        .exec_wb_reg(exec_wb_reg),
-                        .exec_exec_src(exec_exec_src),
-                        .exec_write_addr(exec_physical_write_addr),
-                        .exec_write(exec_res),
-                        
-                        .mem_wb_reg(dmem_wb_reg),
-                        .mem_write_addr(dmem_physical_write_addr),
-                        .mem_write(dmem_write),
-
-                        .wb_wb_reg(wb_wb_reg),
-                        .wb_write_addr(wb_physical_write_addr),
-                        .wb_write(wb_write),
-
-                        .dec_rs_override(forwarded_rs_data),
-                        .dec_rt_override(forwarded_rt_data));
     
     pipeline #(.DATA_WIDTH(DATA_WIDTH),
                .ADDR_WIDTH(ADDR_WIDTH),

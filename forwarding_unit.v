@@ -5,13 +5,13 @@
 // 
 // Create Date: 2018/05/25 00:13:18
 // Design Name: Forwarding Unit
-// Module Name: data_cache
+// Module Name: forwarding_unit
 // Project Name: SimpleCPU
 // Target Devices: Basys3
 // Tool Versions: Vivado 2018.1
 // Description: 
 //   Pipeline bypass
-//
+//   In decode stage
 // 
 // Dependencies: 
 // 
