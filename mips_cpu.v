@@ -64,6 +64,8 @@ module mips_cpu #(
     wire [`DATA_BUS] imem_data;
     wire imem_data_valid;
 
+    wire pipe_global_flush;
+
     // fetch2dec
 
     wire pipe_fetch_flush;
@@ -103,6 +105,7 @@ module mips_cpu #(
     wire pipe_exec_stall;
 
     wire [`DATA_BUS] exec_raw_inst;
+    wire [`INST_BUS] exec_inst;
     wire exec_mem_enable;
     wire [1:0] exec_exec_src;
     wire exec_wb_src;
@@ -116,18 +119,25 @@ module mips_cpu #(
 
     wire [`ADDR_BUS] exec_pc;
 
-    wire [`ALU_OP_WIDTH-1:0] alu_op;
+    wire [`ALU_OP_WIDTH-1:0] exec_alu_op;
+    wire [`DATA_BUS] exec_alu_rs;
+    wire [`DATA_BUS] exec_alu_rt;
+    wire [`DATA_BUS] exec_res;
     
-    wire [`DATA_BUS] alu_rs;
-    wire [`DATA_BUS] alu_rt;
-    wire [`DATA_BUS] alu_rd;
     wire [`DATA_BUS] exec_mem_write;
     
     wire [`DATA_BUS] forwarded_rs_data;
     wire [`DATA_BUS] forwarded_rt_data;
+    wire [`DATA_BUS] mem_cp0_status;
+    wire [`DATA_BUS] mem_cp0_cause;
+    wire [`DATA_BUS] mem_cp0_epc;
+
+    wire exec_wb_cp0;
+    wire [`CP0_REG_BUS] exec_cp0_write_addr;
+    wire [`DATA_BUS] exec_cp0_write;
     
-    wire exec_take_branch = exec_exec_src == `EX_ALU && exec_branch && alu_rd;
-    wire exec_take_trap = exec_exec_src == `EX_ALU && exec_trap && alu_rd;
+    wire exec_take_branch;
+    wire exec_take_trap;
     wire [1:0] exec_test_state;
 
     // exec2mem
@@ -149,6 +159,12 @@ module mips_cpu #(
     wire dmem_branch;
     wire dmem_mem_rw_valid;
     reg dmem_done;
+
+    wire force_disable_mem;
+
+    wire dmem_wb_cp0;
+    wire [`CP0_REG_BUS] dmem_cp0_write_addr;
+    wire [`DATA_BUS] dmem_cp0_write;
     
     wire [`VREG_BUS] dmem_virtual_write_addr;
     wire [`PREG_BUS] dmem_physical_write_addr;
@@ -164,8 +180,19 @@ module mips_cpu #(
     wire [`VREG_BUS] wb_virtual_write_addr;
     wire [`DATA_BUS] wb_write;
     wire [FREE_LIST_WIDTH-1:0] wb_active_list_index;
+
+    wire wb_wb_cp0;
+    wire [`CP0_REG_BUS] wb_cp0_write_addr;
+    wire [`DATA_BUS] wb_cp0_write;
     
     wire pipe_wb_flush;
+    
+    // coprocessor0
+    wire [`CP0_REG_BUS] cp0_reg_read_addr;
+    wire [`DATA_BUS] cp0_reg_read;
+
+    wire [`DATA_BUS] cp0_count, cp0_compare, cp0_status, cp0_cause, cp0_epc, cp0_prid, cp0_cfg;
+    wire cp0_timer_interrupt;
     
     // ram
 
@@ -237,6 +264,7 @@ module mips_cpu #(
                     pfd(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_fetch_flush),
+                        .global_flush(pipe_global_flush),
                         .stall(pipe_decode_stall),
                         
                         .pc_in(fetch_pc),
@@ -252,11 +280,12 @@ module mips_cpu #(
                 decode(.stall(pipe_decode_stall),
                         .pc(dec_pc),
                         .raw_inst(dec_raw_inst),
-                        .rs(dec_vrs_addr),
                         .rs_enable(dec_rs_enable),
-                        .rt(dec_vrt_addr),
+                        .rs_addr(dec_vrs_addr),
                         .rt_enable(dec_rt_enable),
-                        .rd(dec_virtual_write_addr),
+                        .rt_addr(dec_vrt_addr),
+                        .wb_reg(dec_wb_reg), // rd_enable
+                        .rd_addr(dec_virtual_write_addr),
                         .imm(dec_imm),
                         .inst(dec_inst),
                         .exec_op(dec_exec_op),
@@ -265,7 +294,6 @@ module mips_cpu #(
                         .b_ctrl(dec_b_ctrl),
                         .mem_enable(dec_mem_enable),
                         .wb_src(dec_wb_src),
-                        .wb_reg(dec_wb_reg),
                         .jump(dec_jump),
                         .branch(dec_branch),
                         .trap(dec_trap),
@@ -306,6 +334,7 @@ module mips_cpu #(
                     pde(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_decode_flush),
+                        .global_flush(pipe_global_flush),
                         .stall(pipe_exec_stall),
                         
                         .pc_in(dec_pc),
@@ -315,13 +344,13 @@ module mips_cpu #(
                         .inst_in(dec_inst),
                         .inst_out(exec_inst),
                         .alu_op_in(dec_exec_op),
-                        .alu_op_out(alu_op),
+                        .alu_op_out(exec_alu_op),
                         .exec_src_in(dec_exec_src),
                         .exec_src_out(exec_exec_src),
                         .alu_rs_in(forwarded_rs_data),
-                        .alu_rs_out(alu_rs),
+                        .alu_rs_out(exec_alu_rs),
                         .alu_rt_in(dec_b_ctrl ? dec_imm : forwarded_rt_data),
-                        .alu_rt_out(alu_rt),
+                        .alu_rt_out(exec_alu_rt),
                         .mem_enable_in(dec_mem_enable),
                         .mem_enable_out(exec_mem_enable),
                         .mem_write_in(forwarded_rt_data),
@@ -336,7 +365,7 @@ module mips_cpu #(
                         .trap_out(exec_trap),
                         .illegal_in(dec_illegal),
                         .illegal_out(exec_illegal),
-                        .branch_target_in(dec_jump == `JMP_REG ? forwarded_rs_data[`ADDR_BUS] : dec_branch_target),
+                        .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data[`ADDR_BUS] : dec_branch_target),
                         .branch_target_out(exec_branch_target),
                         .virtual_write_addr_in(dec_virtual_write_addr),
                         .virtual_write_addr_out(exec_virtual_write_addr),
@@ -344,14 +373,40 @@ module mips_cpu #(
                         .physical_write_addr_out(exec_physical_write_addr),
                         .active_list_index_in(dec_active_list_index),
                         .active_list_index_out(exec_active_list_index));
-                         
-    arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH))
-                    alu(.stall(pipe_exec_stall),
-                        .en(exec_exec_src == `EX_ALU),
-                        .op(alu_op),
-                        .rs(alu_rs),
-                        .rt(alu_rt),
-                        .rd(alu_rd));
+    
+    execution #(.DATA_WIDTH(DATA_WIDTH),
+                .ADDR_WIDTH(ADDR_WIDTH),
+                .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+                exe(.clk(clk),
+                    .rst_n(rst_n),
+                    
+                    .raw_inst(exec_raw_inst),
+                    .inst(exec_inst),
+                    .exec_src(exec_exec_src),
+                    .alu_op(exec_alu_op),
+                    .alu_rs(exec_alu_rs),
+                    .alu_rt(exec_alu_rt),
+
+                    .branch(exec_branch),
+                    .trap(exec_trap),
+                
+                    .cp0_reg_rw(exec_wb_cp0),
+                    .cp0_reg_read_addr(cp0_reg_read_addr),
+                    .cp0_reg_read(cp0_reg_read),
+                    .cp0_reg_write_addr(exec_cp0_write_addr),
+                    .cp0_reg_write(exec_cp0_write),
+
+                    .mem_wb_cp0(dmem_wb_cp0),
+                    .mem_cp0_write_addr(dmem_cp0_write_addr),
+                    .mem_cp0_write(dmem_cp0_write),
+
+                    .wb_wb_cp0(wb_wb_cp0),
+                    .wb_cp0_write_addr(wb_cp0_write_addr),
+                    .wb_cp0_write(wb_cp0_write),
+                    
+                    .res(exec_res),
+                    .take_branch(exec_take_branch),
+                    .take_trap(exec_take_trap));
 
     pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH),
                         .ADDR_WIDTH(ADDR_WIDTH),
@@ -359,14 +414,14 @@ module mips_cpu #(
                     pem(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_exec_flush),
+                        .global_flush(pipe_global_flush),
                         .stall(pipe_mem_stall),
                         
                         .raw_inst_in(exec_raw_inst),
                         .inst_in(exec_inst),
-                        .alu_res_in(alu_rd),
+                        .alu_res_in(exec_res),
                         .alu_res_out(dmem_res),
                         .mem_sel_out(dmem_mem_sel),
-                        .sign_extend_out(dmem_sign_extend),
                         .mem_rw_out(dmem_mem_rw),
                         .mem_enable_in(exec_mem_enable),
                         .mem_enable_out(dmem_mem_enable),
@@ -385,7 +440,13 @@ module mips_cpu #(
                         .physical_write_addr_in(exec_physical_write_addr),
                         .physical_write_addr_out(dmem_physical_write_addr),
                         .active_list_index_in(exec_active_list_index),
-                        .active_list_index_out(dmem_active_list_index));
+                        .active_list_index_out(dmem_active_list_index),
+                        .wb_cp0_in(exec_wb_cp0),
+                        .wb_cp0_out(dmem_wb_cp0),
+                        .cp0_write_addr_in(exec_cp0_write_addr),
+                        .cp0_write_addr_out(dmem_cp0_write_addr),
+                        .cp0_write_in(exec_cp0_write),
+                        .cp0_write_out(dmem_cp0_write));
 
     always @* // select which value should we write back to register file.
     begin
@@ -400,6 +461,23 @@ module mips_cpu #(
             dmem_done <= dmem_mem_rw_valid; // we write the value if memory signals that the value is valid.
         end
     end
+
+    memory_access #(.DATA_WIDTH(DATA_WIDTH),
+                    .ADDR_WIDTH(ADDR_WIDTH),
+                    .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+                    mem(.clk(clk),
+                        .rst_n(rst_n),
+
+                        .cp0_status(cp0_status),
+                        .cp0_cause(cp0_cause),
+                        .cp0_epc(cp0_epc),
+
+                        .wb_wb_cp0(wb_wb_cp0),
+                        .wb_cp0_write_addr(wb_cp0_write_addr),
+                        .wb_cp0_write(wb_cp0_write),
+
+                        .force_disable_mem(force_disable_mem)
+                    );
 
     bram_controller ram(.clk(clk),
                         .rst_n(rst_n),
@@ -437,7 +515,7 @@ module mips_cpu #(
                 dcache(.clk(clk),
                        .rst_n(rst_n),
                        
-                       .addr(dmem_res[ADDR_WIDTH-1:2]),
+                       .addr(dmem_res[DATA_WIDTH-1:2]),
                        .enable(dmem_mem_enable),
                        .rw(dmem_mem_rw),
 
@@ -465,6 +543,7 @@ module mips_cpu #(
                         .ADDR_WIDTH(ADDR_WIDTH))
                     memctrl(.clk(clk),
                             .rst_n(rst_n),
+                            .force_disable(force_disable_mem),
                             
                             .imem_addr(memctrl_imem_addr),
                             .imem_enable(memctrl_imem_enable),
@@ -521,34 +600,60 @@ module mips_cpu #(
                     pmw(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_wb_flush),
+                        .global_flush(pipe_global_flush),
                         .stall(pipe_wb_stall),
                         
                         .wb_reg_in(dmem_wb_reg),
                         .wb_reg_out(wb_wb_reg),
-                        .wb_data_in(dmem_write),
-                        .wb_data_out(wb_write),
+                        .reg_write_in(dmem_write),
+                        .reg_write_out(wb_write),
                         .virtual_write_addr_in(dmem_virtual_write_addr),
                         .virtual_write_addr_out(wb_virtual_write_addr),
                         .physical_write_addr_in(dmem_physical_write_addr),
                         .physical_write_addr_out(wb_physical_write_addr),
                         .active_list_index_in(dmem_active_list_index),
-                        .active_list_index_out(wb_active_list_index));
+                        .active_list_index_out(wb_active_list_index),
+                        .wb_cp0_in(dmem_wb_cp0),
+                        .wb_cp0_out(wb_wb_cp0),
+                        .cp0_write_addr_in(dmem_cp0_write_addr),
+                        .cp0_write_addr_out(wb_cp0_write_addr),
+                        .cp0_write_in(dmem_cp0_write),
+                        .cp0_write_out(wb_cp0_write));
+
+    coprocessor0 #(.DATA_WIDTH(DATA_WIDTH),
+                   .ADDR_WIDTH(ADDR_WIDTH))
+                cp0(.clk(clk),
+                    .rst_n(rst_n),
+                    
+                    .reg_we(exec_wb_cp0),
+                    .reg_read_addr(cp0_reg_read_addr),
+                    .reg_read(cp0_reg_read),
+                    .reg_write_addr(exec_cp0_write_addr),
+                    .reg_write(exec_cp0_write),
+                    
+                    .count(cp0_count),
+                    .compare(cp0_compare),
+                    .status(cp0_status),
+                    .cause(cp0_cause),
+                    .epc(cp0_epc),
+                    .prid(cp0_prid),
+                    .cfg(cp0_cfg),
+                    
+                    .timer_interrupt(cp0_timer_interrupt));
 
     forwarding_unit #(.DATA_WIDTH(DATA_WIDTH),
                       .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
                 forward(.dec_rs_enable(dec_rs_enable),
-                        .dec_vrs_addr(dec_vrs_addr),
                         .dec_prs_addr(dec_prs_addr),
                         .dec_rs_data(dec_rs_data),
                         .dec_rt_enable(dec_rt_enable),
-                        .dec_vrt_addr(dec_vrt_addr),
                         .dec_prt_addr(dec_prt_addr),
                         .dec_rt_data(dec_rt_data),
 
                         .exec_wb_reg(exec_wb_reg),
                         .exec_exec_src(exec_exec_src),
                         .exec_write_addr(exec_physical_write_addr),
-                        .exec_write(alu_rd),
+                        .exec_write(exec_res),
                         
                         .mem_wb_reg(dmem_wb_reg),
                         .mem_write_addr(dmem_physical_write_addr),
@@ -600,6 +705,8 @@ module mips_cpu #(
 
                     .wb_stall(pipe_wb_stall),
                     .wb_flush(pipe_wb_flush),
+
+                    .global_flush(pipe_global_flush),
 
                     .fetch_branch(fetch_rw),
                     .fetch_branch_target(fetch_write));

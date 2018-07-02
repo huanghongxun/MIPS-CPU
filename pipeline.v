@@ -82,9 +82,16 @@ module pipeline#(
     output reg wb_stall,
     output reg wb_flush,
 
+    output reg global_flush,
+
     // ======= Control Hazards ========
     output reg fetch_branch,
-    output reg [`ADDR_BUS] fetch_branch_target
+    output reg [`ADDR_BUS] fetch_branch_target,
+
+    // ======= Exception Handler ========
+    
+    input [`DATA_BUS] exception,
+    input [`ADDR_BUS] cp0_reg_epc
     );
 
     reg fetch_load;
@@ -267,12 +274,42 @@ module pipeline#(
     begin
         if (!rst_n)
         begin
+            global_flush <= 0;
             fetch_load <= 0;
             fetch_addr <= 'bx;
         end
         else
         begin
-            if (fetch_stall && exec_take_branch)
+            global_flush <= 0;
+            if (exception != `EXCEPT_NONE)
+            begin
+                global_flush <= 1;
+                fetch_load <= 1;
+                case (exception)
+                    `EXCEPT_INTERRUPT: begin
+                        fetch_addr <= `EXCEPT_INTERRUPT_ADDR;
+                    end
+                    `EXCEPT_SYSCALL: begin
+                        fetch_addr <= `EXCEPT_SYSCALL_ADDR;
+                    end
+                    `EXCEPT_ILLEGAL: begin
+                        fetch_addr <= `EXCEPT_ILLEGAL_ADDR;
+                    end
+                    `EXCEPT_TRAP: begin
+                        fetch_addr <= `EXCEPT_TRAP_ADDR;
+                    end
+                    `EXCEPT_OVERFLOW: begin
+                        fetch_addr <= `EXCEPT_OVERFLOW_ADDR;
+                    end
+                    `EXCEPT_ERET: begin
+                        fetch_addr <= cp0_reg_epc;
+                    end
+                    default: begin
+                        fetch_addr <= 0;
+                    end
+                endcase
+            end
+            else if (fetch_stall && exec_take_branch)
             begin
                 fetch_load <= 1;
                 fetch_addr <= exec_branch_target;

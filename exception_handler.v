@@ -23,66 +23,55 @@
 
 module exception_handler#(
 	parameter DATA_WIDTH = 32,
-	parameter ADDR_WIDTH = 16,
-
-    parameter BLOCK_OFFSET_WIDTH = 5
+	parameter ADDR_WIDTH = 16
 )(
     input clk,
     input rst_n,
-    input pipe_decode_stall,
-    input pipe_exec_stall,
 
-    input cp0_reg_epc,
+    input [`DATA_BUS] cp0_status,
+    input [`DATA_BUS] cp0_cause,
+    input [`ADDR_BUS] cp0_epc,
 
-    output reg [`ADDR_BUS] fetch_write,
+    input wb_wb_cp0,
+    input [`CP0_REG_BUS] wb_cp0_write_addr,
+    input [`DATA_BUS] wb_cp0_write,
 
-    output stall,
-    output flush
+    input [`EXCEPT_MASK_BUS] exception_mask,
+    input [`ADDR_BUS] pc,
+    output reg [`DATA_BUS] exception,
+
+    output force_disable_mem
 );
 
+    // Convert exception mask to exception id.
     always @*
     begin
         if (!rst_n)
         begin
-            stall <= 0;
-            flush <= 0;
-            fetch_write <= 0;
+            exception <= `EXCEPT_NONE;
         end
         else
         begin
-            if (exception != `EXCEPT_NONE)
+            exception <= `EXCEPT_NONE;
+            if (pc != 0)
             begin
-                stall <= 0;
-                flush <= 1;
-                fetch_write <= 0;
-                case (exception)
-                    `EXCEPT_INTERRUPT: begin
-                        fetch_write <= `EXCEPT_INTERRUPT_ADDR;
-                    end
-                    `EXCEPT_SYSCALL: begin
-                        fetch_write <= `EXCEPT_SYSCALL_ADDR;
-                    end
-                    `EXCEPT_ILLEGAL: begin
-                        fetch_write <= `EXCEPT_ILLEGAL_ADDR;
-                    end
-                    `EXCEPT_TRAP: begin
-                        fetch_write <= `EXCEPT_TRAP_ADDR;
-                    end
-                    `EXCEPT_OVERFLOW: begin
-                        fetch_write <= `EXCEPT_OVERFLOW_ADDR;
-                    end
-                    `EXCEPT_ERET: begin
-                        fetch_write <= cp0_reg_epc;
-                    end
-                endcase
-            end
-            else
-            begin
-                stall <= 0;
-                flush <= 0;
-                fetch_write <= 0;
+                if ((cp0_cause[15:8] & cp0_status[15:8]) != 0 &&
+                    cp0_status[1] == 0 && cp0_status[0] == 1)
+                    exception <= `EXCEPT_INTERRUPT;
+                else if (exception_mask[`EXCEPT_SYSCALL])
+                    exception <= `EXCEPT_SYSCALL;
+                else if (exception_mask[`EXCEPT_ILLEGAL])
+                    exception <= `EXCEPT_ILLEGAL;
+                else if (exception_mask[`EXCEPT_TRAP])
+                    exception <= `EXCEPT_TRAP;
+                else if (exception_mask[`EXCEPT_OVERFLOW])
+                    exception <= `EXCEPT_OVERFLOW;
+                else if (exception_mask[`EXCEPT_ERET])
+                    exception <= `EXCEPT_ERET;
             end
         end
     end
+
+    assign force_disable_mem = exception_mask != 0;
 
 endmodule

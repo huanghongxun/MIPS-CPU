@@ -32,20 +32,21 @@ module decoder #(
     input [`ADDR_BUS] pc,
     input [`DATA_BUS] raw_inst,
 
-    output reg [`VREG_BUS] rs, // register index of rs
-    output reg [`VREG_BUS] rt, // register index of rt
-    output reg [`VREG_BUS] rd, // register index of rd
     output reg rs_enable, // 1 if rs is valid
+    output reg [`VREG_BUS] rs_addr, // register index of rs
     output reg rt_enable, // 1 if rt is valid
+    output reg [`VREG_BUS] rt_addr, // register index of rt
+    output reg wb_reg, // 1 if write to register rd. (if rd is valid)
+    output reg [`VREG_BUS] rd_addr, // register index of rd, or coprocessor register index
     output reg [`DATA_BUS] imm, // immediate for I-type instruction.
     output reg [`INST_WIDTH-1:0] inst,
     output reg [`ALU_OP_WIDTH-1:0] exec_op, // ALU operation id.
     output reg [`ADDR_BUS] addr, // jump_target for J-type instruction.
-    output reg [1:0] exec_src, // ALU, IPU, FPU, External
+    output reg [`EX_SRC_BUS] exec_src, // ALU, IPU, FPU, External
     output reg b_ctrl, // 1 if use immediate value instead of rt
     output mem_enable, // 1 if enable memory, 0 if disable memory 
     output reg wb_src, // 1 if write back from ALU, 0 if write back from memory(load inst)
-    output reg wb_reg, // 1 if write to register rd.
+    output reg wb_cp0, // 1 if write to cp0 register.
     output [1:0] jump, // 1 if jump to imm, 2 if jump to register rt
     output branch, // 1 if this inst is a branch inst.
     output trap, // 1 if this inst is a trap inst.
@@ -61,43 +62,34 @@ module decoder #(
     wire [15:0] imm_wire = raw_inst[15:0]; // immediate for arithmetic instruction, or offset for branch instructions.
     wire [25:0] addr_wire = raw_inst[25:0]; // jump target address(instruction index) for J-type instruction.
 
-    `define decode(rs_wire, rs_enable_wire, rt_wire, rt_enable_wire, rd_wire, wb_reg_wire, inst_wire, exec_op_wire, imm_wire, addr_wire, exec_src_wire, b_ctrl_wire, mem_enable_wire, wb_src_wire) \
-        rs = rs_wire; \
-        rs_enable = rs_enable_wire; \
-        rt = rt_wire; \
-        rt_enable = rt_enable_wire; \
-        rd = rd_wire; \
-        wb_reg = wb_reg_wire; \
-        inst = inst_wire; \
-        exec_op = exec_op_wire; \
-        imm = imm_wire; \
-        addr = addr_wire; \
-        exec_src = exec_src_wire; \
-        b_ctrl = b_ctrl_wire; \
-        wb_src = wb_src_wire; \
-        illegal = `FALSE
+    `define decode(rs_wire, rs_enable_wire, rt_wire, rt_enable_wire, rd_wire, wb_reg_wire, inst_wire, exec_op_wire, imm_wire, addr_wire, exec_src_wire, b_ctrl_wire, wb_src_wire) \
+        rs_addr <= rs_wire; \
+        rs_enable <= rs_enable_wire; \
+        rt_addr <= rt_wire; \
+        rt_enable <= rt_enable_wire; \
+        rd_addr <= rd_wire; \
+        wb_reg <= wb_reg_wire; \
+        inst <= inst_wire; \
+        exec_op <= exec_op_wire; \
+        imm <= imm_wire; \
+        addr <= addr_wire; \
+        exec_src <= exec_src_wire; \
+        b_ctrl <= b_ctrl_wire; \
+        wb_src <= wb_src_wire; \
+        illegal <= 0
 
-    `define decode_invalid
-        rs = 0; \
-        rs_enable = 0; \
-        rt = 0; \
-        rt_enable = 0; \
-        rd = 0; \
-        wb_reg = 0; \
-        inst = 0; \
-        exec_op = 0; \
-        imm = 0; \
-        addr = 0; \
-        exec_src = 0; \
-        b_ctrl = 0; \
-        wb_src = 0; \
-        illegal = `TRUE; \
+`ifdef DEBUG_DEC
+    `define decode_invalid \
         if (!stall && raw_inst != 'bx) \
             $display("%x: unknown instruction %b", pc, raw_inst)
-
+`else
+    `define decode_invalid illegal <= 1
+`endif
 
     always @(raw_inst, pc)
     begin
+        `decode(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0);
+        illegal <= 1;
         case (op_wire)
             6'b000000:
                 case (funct_wire)
@@ -165,6 +157,20 @@ module decoder #(
                             $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 2));
 `endif
                     end
+                    6'b001010: begin // movz
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, rd_wire, `REG_WB, `INST_MOVZ, `ALU_OP_NOP, 0, 0, `EX_MOV, `B_REG, `WB_ALU);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: movz, rs: %d, rt: %d, rd: %d", pc, rs_wire, rt_wire, rd_wire);
+`endif
+                    end
+                    6'b001011: begin // movn
+                        `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, rd_wire, `REG_WB, `INST_MOVN, `ALU_OP_NOP, 0, 0, `EX_MOV, `B_REG, `WB_ALU);
+`ifdef DEBUG_DEC
+                        if (!stall)
+                            $display("%x: movn, rs: %d, rt: %d, rd: %d", pc, rs_wire, rt_wire, rd_wire);
+`endif
+                    end
                     6'b001100: begin // syscall
                         `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_SYSCALL, `ALU_OP_NOP, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
@@ -179,12 +185,18 @@ module decoder #(
                             $display("%x: mfhi, rd: %d", pc, rd_wire);
 `endif
                     end
+                    6'b010001: begin // mthi
+
+                    end
                     6'b010010: begin // mflo
                         `decode(0, `RS_DIS, 0, `RT_DIS, rd_wire, `REG_WB, `INST_MFLO, `ALU_OP_MFLO, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: mflo, rd: %d", pc, rd_wire);
 `endif
+                    end
+                    6'b010011: begin // mtlo
+
                     end
                     6'b011000: begin // mult
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_MUL, `ALU_OP_MUL, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
@@ -290,30 +302,35 @@ module decoder #(
                         if (!stall)
                             $display("%x: tge, rs: %d, rt: %d", pc, rs_wire, rt_wire);
 `endif
+                    end
                     6'b110001: begin // tgeu
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TGEU, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: tgeu, rs: %d, rt: %d", pc, rs_wire, rt_wire);
 `endif
+                    end
                     6'b110010: begin // tlt
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TLT, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: tlt, rs: %d, rt: %d", pc, rs_wire, rt_wire);
 `endif
+                    end
                     6'b110011: begin // tltu
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TLTU, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: tltu, rs: %d, rt: %d", pc, rs_wire, rt_wire);
 `endif
+                    end
                     6'b110100: begin // teq
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TEQ, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
                             $display("%x: teq, rs: %d, rt: %d", pc, rs_wire, rt_wire);
 `endif
+                    end
                     6'b110110: begin // tne
                         `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_TNE, `ALU_OP_EQ, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
@@ -453,14 +470,14 @@ module decoder #(
 `endif
             end
             6'b001010: begin // slti
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, rt_wire, `REG_WB, `INST_SLT, `ALU_OP_SLT, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `WB_ALU);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, rt_wire, `REG_WB, `INST_SLT, `ALU_OP_LT, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
                     $display("%x: slti, rs: %d, imm: %d, rt: %d", pc, rs_wire, $signed(imm_wire), rt_wire);
 `endif
             end
             6'b001011: begin // sltiu
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, rt_wire, `REG_WB, `INST_SLTU, `ALU_OP_SLTU, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `WB_ALU);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, rt_wire, `REG_WB, `INST_SLTU, `ALU_OP_LTU, $signed(imm_wire), 0, `EX_ALU, `B_IMM, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
                     $display("%x: sltiu, rs: %d, imm: %d, rt: %d", pc, rs_wire, $signed(imm_wire), rt_wire);
@@ -499,7 +516,7 @@ module decoder #(
                 begin
                     case (funct_wire)
                         6'b011000: begin // eret
-                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_ERET, `ALU_OP_NOP, `EX_ALU, `B_REG, `WB_ALU);
+                            `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_ERET, `ALU_OP_NOP, 0, 0, `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                             if (!stall)
                                 $display("%x: eret", pc);
@@ -535,14 +552,14 @@ module decoder #(
                 begin
                     case (rs_wire)
                         5'b00000: begin // mfc0 rt, rd
-                            `decode(0, `RS_DIS, 0, `RS_DIS, rd_wire, `REG_WB, `INST_MFC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `WB_ALU);
+                            `decode(0, `RS_DIS, 0, `RS_DIS, rd_wire, `REG_WB, `INST_MFC0, `ALU_OP_NOP, 0, 0, `EX_MOV, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                             if (!stall)
                                 $display("%x: mfc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);
 `endif
                         end
                         5'b00100: begin // mtc0
-                            `decode(rt_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_MTC0, `ALU_OP_NOP, 0, 0, `EX_ALU, `WB_ALU);
+                            `decode(rt_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_MTC0, `ALU_OP_NOP, 0, 0, `EX_MOV, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                             if (!stall)
                                 $display("%x: mtc0, rt: %d, rd: %d", pc, rt_wire, rd_wire);

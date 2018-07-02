@@ -1,3 +1,6 @@
+`ifndef DEFINES_V
+`define DEFINES_V
+
 `define XILINX_SIM
 `ifdef XILINX_SIM
 
@@ -35,9 +38,12 @@
 `define RT_EN 1
 `define RT_DIS 0
 
+`define EX_SRC_WIDTH 2
+`define EX_SRC_BUS 1:0
+
 `define EX_NOP 0
 `define EX_ALU 1
-`define EX_IPU 2
+`define EX_MOV 2
 `define EX_FPU 3
 
 `define B_REG 0
@@ -82,7 +88,7 @@
  *               *
  *****************/
 `define DATA_BUS DATA_WIDTH-1:0
-`define ADDR_BUS ADDR_WIDTH-1:0
+`define ADDR_BUS DATA_WIDTH-3:0 // We partition memory into dozens of words, but address locates data by byte.
 `define VREG_BUS REG_ADDR_WIDTH-1:0
 `define PREG_BUS REG_ADDR_WIDTH:0
 
@@ -101,6 +107,8 @@
  *   Coprocessor   *
  *                 *
  *******************/
+
+`define CP0_REG_BUS 4:0
  
 `define CP0_REG_COUNT 9
 `define CP0_REG_COMPARE 11
@@ -115,13 +123,15 @@
  *   Exceptions   *
  *                *
  ******************/
- 
-`define EXCEPT_INTERRUPT 32'h00000001
-`define EXCEPT_SYSCALL 32'h00000008
-`define EXCEPT_ILLEGAL 32'h0000000a
-`define EXCEPT_OVERFLOW 32'h0000000c
-`define EXCEPT_TRAP    32'h0000000d
-`define EXCEPT_ERET    32'h0000000e
+`define EXCEPT_MASK_BUS 6:0
+
+`define EXCEPT_NONE 0
+`define EXCEPT_INTERRUPT 1
+`define EXCEPT_SYSCALL 2
+`define EXCEPT_ILLEGAL 3
+`define EXCEPT_OVERFLOW 4
+`define EXCEPT_TRAP    5
+`define EXCEPT_ERET    6
  
 `define EXCEPT_INTERRUPT_ADDR 32'h00000020
 `define EXCEPT_SYSCALL_ADDR 32'h00000040
@@ -276,8 +286,9 @@
 `define INST_SRA  7'b0000010
 
 //`define INST_??? 7'b0000011
-//`define INST_??? 7'b0000100
-//`define INST_??? 7'b0000101
+
+`define INST_MOVZ 7'b0000100
+`define INST_MOVN 7'b0000101
 
 `define INST_MFHI 7'b0000110
 `define INST_MFLO 7'b0000111
@@ -342,3 +353,5 @@
 
 `define INST_MTC0 7'b0111110
 `define INST_MFC0 7'b0111111
+
+`endif

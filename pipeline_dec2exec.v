@@ -30,6 +30,7 @@ module pipeline_dec2exec #(
     input clk,
     input rst_n,
     input flush,
+    input global_flush,
     input stall,
     
     input      [`ADDR_BUS] pc_in,
@@ -40,8 +41,8 @@ module pipeline_dec2exec #(
     output reg [`INST_BUS] inst_out,
     input      [`ALU_OP_BUS] alu_op_in,
     output reg [`ALU_OP_BUS] alu_op_out,
-    input            [1:0] exec_src_in,
-    output reg       [1:0] exec_src_out,
+    input      [`EX_SRC_BUS] exec_src_in,
+    output reg [`EX_SRC_BUS] exec_src_out,
     input      [`DATA_BUS] alu_rs_in,
     output reg [`DATA_BUS] alu_rs_out,
     input      [`DATA_BUS] alu_rt_in,
@@ -100,7 +101,7 @@ module pipeline_dec2exec #(
         begin
             if (!stall)
             begin
-                if (flush)
+                if (flush || global_flush)
                 begin
                     pc_out <= 0;
                     inst_out <= 0;

@@ -28,14 +28,15 @@ module pipeline_fetch2dec #(
     input clk,
     input rst_n,
     input flush,
+    input global_flush,
     input stall,
 
     input      [`ADDR_BUS] pc_in,
     output reg [`ADDR_BUS] pc_out,
     input      [`DATA_BUS] inst_in,
     output reg [`DATA_BUS] inst_out,
-    input                       bubble_in,
-    output reg                  bubble_out
+    input                  bubble_in,
+    output reg             bubble_out
     );
 
     always @(posedge clk, negedge rst_n)
@@ -50,7 +51,7 @@ module pipeline_fetch2dec #(
         begin
             if (!stall)
             begin
-                if (flush)
+                if (flush || global_flush)
                 begin
                     pc_out <= 0;
                     inst_out <= 0;

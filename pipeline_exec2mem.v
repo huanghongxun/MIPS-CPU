@@ -30,6 +30,7 @@ module pipeline_exec2mem #(
     input clk,
     input rst_n,
     input flush,
+    input global_flush,
     input stall,
     
     input      [`DATA_BUS] raw_inst_in,
@@ -56,7 +57,13 @@ module pipeline_exec2mem #(
     input      [`PREG_BUS] physical_write_addr_in,
     output reg [`PREG_BUS] physical_write_addr_out,
     input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
-    output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
+    output reg [FREE_LIST_WIDTH-1:0] active_list_index_out,
+    input                  wb_cp0_in,
+    output reg             wb_cp0_out,
+    input      [`CP0_REG_BUS] cp0_write_addr_in,
+    output reg [`CP0_REG_BUS] cp0_write_addr_out,
+    input      [`DATA_BUS] cp0_write_in,
+    output reg [`DATA_BUS] cp0_write_out
     );
 
     reg [`INST_BUS] inst;
@@ -74,12 +81,15 @@ module pipeline_exec2mem #(
             virtual_write_addr_out <= 0;
             physical_write_addr_out <= 0;
             active_list_index_out <= 0;
+            wb_cp0_out <= 0;
+            cp0_write_addr_out <= 0;
+            cp0_write_out <= 0;
         end
         else
         begin
             if (!stall)
             begin
-                if (flush)
+                if (flush || global_flush)
                 begin
                     inst <= 0;
                     alu_res_out <= 0;
@@ -90,6 +100,9 @@ module pipeline_exec2mem #(
                     virtual_write_addr_out <= 0;
                     physical_write_addr_out <= 0;
                     active_list_index_out <= 0;
+                    wb_cp0_out <= 0;
+                    cp0_write_addr_out <= 0;
+                    cp0_write_out <= 0;
                 end
                 else
                 begin
@@ -102,6 +115,9 @@ module pipeline_exec2mem #(
                     virtual_write_addr_out <= virtual_write_addr_in;
                     physical_write_addr_out <= physical_write_addr_in;
                     active_list_index_out <= active_list_index_in;
+                    wb_cp0_out <= wb_cp0_in;
+                    cp0_write_addr_out <= cp0_write_addr_in;
+                    cp0_write_out <= cp0_write_in;
                 end
             end
         end

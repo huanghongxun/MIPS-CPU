@@ -36,6 +36,8 @@ module memory_controller#(
     input clk,
     input rst_n,
 
+    input force_disable, // stop writing to RAM
+
     // inst cache
     input [`ADDR_BUS] imem_addr,
     input imem_enable,
@@ -186,7 +188,7 @@ module memory_controller#(
                         $display("memctrl: start servicing instruction cache");
 `endif
                     end
-                    else if (dmem_enable)
+                    else if (dmem_enable && (!force_disable || force_disable && dmem_rw != `MEM_WRITE))
                     begin
                         state <= STATE_DATA_MEM;
 `ifdef DEBUG_MEMCTRL

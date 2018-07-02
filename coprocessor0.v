@@ -23,11 +23,19 @@
 
 module coprocessor0#(
 	parameter DATA_WIDTH = 32,
-	parameter ADDR_WIDTH = 16,
-
-    parameter BLOCK_OFFSET_WIDTH = 5
+	parameter ADDR_WIDTH = 16
 )(
+    input clk,
     input rst_n,
+
+    input reg_we,
+    input [4:0] reg_read_addr,
+    output reg [`DATA_BUS] reg_read,
+    input [4:0] reg_write_addr,
+    input [`DATA_BUS] reg_write,
+
+    input [5:0] hardware_int,
+
     input pipe_decode_stall,
     input pipe_exec_stall,
 
@@ -40,7 +48,9 @@ module coprocessor0#(
     output [31:0] cause,
     output [`ADDR_BUS] epc,
     output [31:0] prid,
-    output [31:0] config
+    output [31:0] cfg,
+
+    output reg timer_interrupt
 );
 
     reg [`DATA_BUS] count; // r9
@@ -78,7 +88,7 @@ module coprocessor0#(
     assign prid = 32'b00000000_00000000_0000000000_000000;
 
     // r16
-    assign config = {1'b0 /* M */, {15{1'b0}} /* Impl */, 1'b1 /* BE */, 2'b00 /* AT */, 3'b000 /* AR */, 3'b000 /* MT */, 3'b000, 1'b0 /* VI */, 3'b000 /* Kseg0 */};
+    assign cfg = {1'b0 /* M */, {15{1'b0}} /* Impl */, 1'b1 /* BE */, 2'b00 /* AT */, 3'b000 /* AR */, 3'b000 /* MT */, 3'b000, 1'b0 /* VI */, 3'b000 /* Kseg0 */};
 
     task update_pc_cause;
         if (status_exl == 0)
@@ -96,8 +106,8 @@ module coprocessor0#(
         end
         else
         begin
-            if (rw == `MEM_WRITE && addr == `CP0_REG_COUNT)
-                count <= write;
+            if (reg_we && reg_write_addr == `CP0_REG_COUNT)
+                count <= reg_write;
             else
                 count <= count + 1;
         end
@@ -114,9 +124,9 @@ module coprocessor0#(
             if (compare != 0 && count == compare)
                 timer_interrupt <= `TRUE;
             
-            if (rw == `MEM_WRITE && addr == `CP0_REG_COMPARE)
+            if (reg_we && reg_write_addr == `CP0_REG_COMPARE)
             begin
-                compare <= write;
+                compare <= reg_write;
                 timer_interrupt <= `FALSE;
             end
         end
@@ -143,22 +153,24 @@ module coprocessor0#(
         end
         else
         begin
-            if (rw == `MEM_WRITE)
-                case (addr)
+            cause_hardware_ip <= hardware_int;
+
+            if (reg_we)
+                case (reg_write_addr)
                     `CP0_REG_EPC: begin
-                        epc <= data;
+                        epc <= reg_write;
                     end
                     `CP0_REG_STATUS: begin
-                        status_rp <= data[27];
-                        status_re <= data[25];
-                        status_bev <= data[22];
-                        status_ts <= data[21];
-                        status_ie <= data[0];
+                        status_rp <= reg_write[27];
+                        status_re <= reg_write[25];
+                        status_bev <= reg_write[22];
+                        status_ts <= reg_write[21];
+                        status_ie <= reg_write[0];
                     end
                     `CP0_REG_CAUSE: begin
-                        cause_software_ip <= data[9:8];
-                        cause_iv <= data[23];
-                        cause_wp <= data[22];
+                        cause_software_ip <= reg_write[9:8];
+                        cause_iv <= reg_write[23];
+                        cause_wp <= reg_write[22];
                     end
                 endcase
 
@@ -197,17 +209,17 @@ module coprocessor0#(
 
     always @*
     begin
-        if (!rst_n) read <= 0;
+        if (!rst_n) reg_read <= 0;
         else
-            case (read_addr)
-                `CP0_REG_COUNT: read <= count;
-                `CP0_REG_COMPARE: read <= compare;
-                `CP0_REG_STATUS: read <= status;
-                `CP0_REG_CAUSE: read <= cause;
-                `CP0_REG_EPC: read <= epc;
-                `CP0_REG_PRID: read <= prid;
-                `CP0_REG_CONFIG: read <= config;
-                default: read <= 0;
+            case (reg_read_addr)
+                `CP0_REG_COUNT: reg_read <= count;
+                `CP0_REG_COMPARE: reg_read <= compare;
+                `CP0_REG_STATUS: reg_read <= status;
+                `CP0_REG_CAUSE: reg_read <= cause;
+                `CP0_REG_EPC: reg_read <= epc;
+                `CP0_REG_PRID: reg_read <= prid;
+                `CP0_REG_CONFIG: reg_read <= cfg;
+                default: reg_read <= 0;
             endcase
     end
 
