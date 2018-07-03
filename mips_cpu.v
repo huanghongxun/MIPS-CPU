@@ -24,7 +24,6 @@
 module mips_cpu #(
     parameter DATA_WIDTH = 32,
     parameter DATA_PER_BYTE_WIDTH = 2,
-    parameter BRAM_ADDR_WIDTH = 16,
     parameter FREE_LIST_WIDTH = 3,
 
     parameter ASSO_WIDTH = 1, // for n-way associative caching
@@ -48,12 +47,18 @@ module mips_cpu #(
     output external_last,
     input external_done,
     
-    // block memory generator
-    output bram_ena,
-    output bram_wea,
-    output [`BRAM_ADDR_BUS] bram_addra,
-    output [`DATA_BUS] bram_dina,
-    input [`DATA_BUS] bram_douta
+    // Interface with RAM controller
+
+    output [`DATA_BUS] ram_addr,
+    output ram_enable,
+    output ram_rw,
+    output ram_op_size,
+    output ram_finishes_op,
+    output [`DATA_BUS] ram_write,
+    input ram_write_req_input,
+    input [`DATA_BUS] ram_read,
+    input ram_read_valid,
+    input ram_last
     );
 
     wire pipe_fetch_stall;
@@ -194,19 +199,6 @@ module mips_cpu #(
 
     wire [`DATA_BUS] cp0_count, cp0_compare, cp0_status, cp0_cause, cp0_epc, cp0_prid, cp0_cfg;
     wire cp0_timer_interrupt;
-    
-    // ram
-
-    wire [`DATA_BUS] ram_addr;
-    wire ram_enable;
-    wire ram_rw;
-    wire ram_op_size;
-    wire ram_finishes_op;
-    wire [`DATA_BUS] ram_write;
-    wire ram_write_req_input;
-    wire [`DATA_BUS] ram_read;
-    wire ram_read_valid;
-    wire ram_last;
 
     // memctrl
 
@@ -227,241 +219,254 @@ module mips_cpu #(
     
     wire done = exec_inst == `INST_TEST_DONE;
     
-    fetch_unit #(.DATA_WIDTH(DATA_WIDTH))
-                fetch(.clk(clk),
-                    .rst_n(rst_n),
-                    .stall(pipe_fetch_stall),
-                    
-                    .rw(fetch_rw),
-                    .write(fetch_write),
-                    
-                    .pc(fetch_pc));
+    fetch_unit #(.DATA_WIDTH(DATA_WIDTH)) fetch(
+        .clk(clk),
+        .rst_n(rst_n),
+        .stall(pipe_fetch_stall),
+        
+        .rw(fetch_rw),
+        .write(fetch_write),
+        
+        .pc(fetch_pc)
+    );
 
     inst_cache#(.DATA_WIDTH(DATA_WIDTH),
                 .ASSO_WIDTH(ASSO_WIDTH),
                 .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH),
                 .INDEX_WIDTH(INDEX_WIDTH),
                 .TAG_WIDTH(TAG_WIDTH))
-                icache(.clk(clk),
-                       .rst_n(rst_n),
+                icache(
+        .clk(clk),
+        .rst_n(rst_n),
 
-                       // request
-                       .addr(fetch_pc),
-                       .enable(external_done),
+        // request
+        .addr(fetch_pc),
+        .enable(external_done),
 
-                       .ready(imem_ready),
-                       .data(imem_data),
-                       .data_valid(imem_data_valid),
-                       
-                       .mem_addr(memctrl_imem_addr),
-                       .mem_enable(memctrl_imem_enable),
-                       
-                       .mem_read(memctrl_imem_read),
-                       .mem_read_valid(memctrl_imem_read_valid),
-                       .mem_last(memctrl_imem_last));
+        .ready(imem_ready),
+        .data(imem_data),
+        .data_valid(imem_data_valid),
+        
+        .mem_addr(memctrl_imem_addr),
+        .mem_enable(memctrl_imem_enable),
+        
+        .mem_read(memctrl_imem_read),
+        .mem_read_valid(memctrl_imem_read_valid),
+        .mem_last(memctrl_imem_last)
+    );
 
-    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH))
-                    pfd(.clk(clk),
-                        .rst_n(rst_n),
-                        .flush(pipe_fetch_flush),
-                        .global_flush(pipe_global_flush),
-                        .stall(pipe_decode_stall),
-                        
-                        .pc_in(fetch_pc),
-                        .pc_out(dec_pc),
-                        .inst_in(imem_data),
-                        .inst_out(dec_raw_inst),
-                        .bubble_in(imem_data_valid),
-                        .bubble_out(dec_bubble));
+    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH)) pfd(
+        .clk(clk),
+        .rst_n(rst_n),
+        .flush(pipe_fetch_flush),
+        .global_flush(pipe_global_flush),
+        .stall(pipe_decode_stall),
+        
+        .pc_in(fetch_pc),
+        .pc_out(dec_pc),
+        .inst_in(imem_data),
+        .inst_out(dec_raw_inst),
+        .bubble_in(imem_data_valid),
+        .bubble_out(dec_bubble)
+    );
                             
-    decoder #(.DATA_WIDTH(DATA_WIDTH))
-                decode(.stall(pipe_decode_stall),
-                        .pc(dec_pc),
-                        .raw_inst(dec_raw_inst),
-                        .rs_enable(dec_rs_enable),
-                        .rs_addr(dec_vrs_addr),
-                        .rt_enable(dec_rt_enable),
-                        .rt_addr(dec_vrt_addr),
-                        .wb_reg(dec_wb_reg), // rd_enable
-                        .rd_addr(dec_virtual_write_addr),
-                        .imm(dec_imm),
-                        .inst(dec_inst),
-                        .exec_op(dec_exec_op),
-                        .addr(dec_branch_target),
-                        .exec_src(dec_exec_src),
-                        .b_ctrl(dec_b_ctrl),
-                        .mem_enable(dec_mem_enable),
-                        .wb_src(dec_wb_src),
-                        .jump(dec_jump),
-                        .branch(dec_branch),
-                        .trap(dec_trap),
-                        .illegal(dec_illegal));
+    decoder #(.DATA_WIDTH(DATA_WIDTH)) decode(
+        .stall(pipe_decode_stall),
+        .pc(dec_pc),
+        .raw_inst(dec_raw_inst),
+        .rs_enable(dec_rs_enable),
+        .rs_addr(dec_vrs_addr),
+        .rt_enable(dec_rt_enable),
+        .rt_addr(dec_vrt_addr),
+        .wb_reg(dec_wb_reg), // rd_enable
+        .rd_addr(dec_virtual_write_addr),
+        .imm(dec_imm),
+        .inst(dec_inst),
+        .exec_op(dec_exec_op),
+        .addr(dec_branch_target),
+        .exec_src(dec_exec_src),
+        .b_ctrl(dec_b_ctrl),
+        .mem_enable(dec_mem_enable),
+        .wb_src(dec_wb_src),
+        .jump(dec_jump),
+        .branch(dec_branch),
+        .trap(dec_trap),
+        .illegal(dec_illegal)
+    );
                           
 
     register_file #(.DATA_WIDTH(DATA_WIDTH),
-                       .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
-                    regfile(.clk(clk),
-                            .rst_n(rst_n),
-                            .stall_in(pipe_decode_stall),
+                    .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
+                    regfile(
+        .clk(clk),
+        .rst_n(rst_n),
+        .stall_in(pipe_decode_stall),
 
-                            .virtual_rs_addr(dec_vrs_addr),
-                            .virtual_rs_data(dec_rs_data),
-                            .virtual_rt_addr(dec_vrt_addr),
-                            .virtual_rt_data(dec_rt_data),
-                            .dec_rw(dec_wb_reg),
-                            .virtual_rd_addr(dec_virtual_write_addr),
-                            
-                            .wb_write_enable(wb_wb_reg && !pipe_wb_flush),
-                            .wb_physical_write_addr(wb_physical_write_addr),
-                            .wb_physical_write_data(wb_write),
-                            .wb_active_list_index(wb_active_list_index),
+        .virtual_rs_addr(dec_vrs_addr),
+        .virtual_rs_data(dec_rs_data),
+        .virtual_rt_addr(dec_vrt_addr),
+        .virtual_rt_data(dec_rt_data),
+        .dec_rw(dec_wb_reg),
+        .virtual_rd_addr(dec_virtual_write_addr),
+        
+        .wb_write_enable(wb_wb_reg && !pipe_wb_flush),
+        .wb_physical_write_addr(wb_physical_write_addr),
+        .wb_physical_write_data(wb_write),
+        .wb_active_list_index(wb_active_list_index),
 
-                            .physical_rs_addr(dec_prs_addr),
-                            .physical_rt_addr(dec_prt_addr),
-                            .physical_rd_addr(dec_physical_write_addr),
+        .physical_rs_addr(dec_prs_addr),
+        .physical_rt_addr(dec_prt_addr),
+        .physical_rd_addr(dec_physical_write_addr),
 
-                            .active_list_index(dec_active_list_index),
-                            
-                            .stall_out(regfile_stall));
+        .active_list_index(dec_active_list_index),
+        
+        .stall_out(regfile_stall)
+    );
 
-    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH))
-                forward(.dec_rs_enable(dec_rs_enable),
-                        .dec_prs_addr(dec_prs_addr),
-                        .dec_rs_data(dec_rs_data),
-                        .dec_rt_enable(dec_rt_enable),
-                        .dec_prt_addr(dec_prt_addr),
-                        .dec_rt_data(dec_rt_data),
+    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH)) forward(
+        .dec_rs_enable(dec_rs_enable),
+        .dec_prs_addr(dec_prs_addr),
+        .dec_rs_data(dec_rs_data),
+        .dec_rt_enable(dec_rt_enable),
+        .dec_prt_addr(dec_prt_addr),
+        .dec_rt_data(dec_rt_data),
 
-                        .exec_wb_reg(exec_wb_reg),
-                        .exec_exec_src(exec_exec_src),
-                        .exec_write_addr(exec_physical_write_addr),
-                        .exec_write(exec_res),
-                        
-                        .mem_wb_reg(dmem_wb_reg),
-                        .mem_write_addr(dmem_physical_write_addr),
-                        .mem_write(dmem_write),
+        .exec_wb_reg(exec_wb_reg),
+        .exec_exec_src(exec_exec_src),
+        .exec_write_addr(exec_physical_write_addr),
+        .exec_write(exec_res),
+        
+        .mem_wb_reg(dmem_wb_reg),
+        .mem_write_addr(dmem_physical_write_addr),
+        .mem_write(dmem_write),
 
-                        .wb_wb_reg(wb_wb_reg),
-                        .wb_write_addr(wb_physical_write_addr),
-                        .wb_write(wb_write),
+        .wb_wb_reg(wb_wb_reg),
+        .wb_write_addr(wb_physical_write_addr),
+        .wb_write(wb_write),
 
-                        .dec_rs_override(forwarded_rs_data),
-                        .dec_rt_override(forwarded_rt_data));
+        .dec_rs_override(forwarded_rs_data),
+        .dec_rt_override(forwarded_rt_data)
+    );
 
     pipeline_dec2exec #(.DATA_WIDTH(DATA_WIDTH),
                         .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
-                    pde(.clk(clk),
-                        .rst_n(rst_n),
-                        .flush(pipe_decode_flush),
-                        .global_flush(pipe_global_flush),
-                        .stall(pipe_exec_stall),
-                        
-                        .pc_in(dec_pc),
-                        .pc_out(exec_pc),
-                        .raw_inst_in(dec_raw_inst),
-                        .raw_inst_out(exec_raw_inst),
-                        .inst_in(dec_inst),
-                        .inst_out(exec_inst),
-                        .alu_op_in(dec_exec_op),
-                        .alu_op_out(exec_alu_op),
-                        .exec_src_in(dec_exec_src),
-                        .exec_src_out(exec_exec_src),
-                        .alu_rs_in(forwarded_rs_data),
-                        .alu_rs_out(exec_alu_rs),
-                        .alu_rt_in(dec_b_ctrl ? dec_imm : forwarded_rt_data),
-                        .alu_rt_out(exec_alu_rt),
-                        .mem_enable_in(dec_mem_enable),
-                        .mem_enable_out(exec_mem_enable),
-                        .mem_write_in(forwarded_rt_data),
-                        .mem_write_out(exec_mem_write),
-                        .wb_src_in(dec_wb_src),
-                        .wb_src_out(exec_wb_src),
-                        .wb_reg_in(dec_wb_reg),
-                        .wb_reg_out(exec_wb_reg),
-                        .branch_in(dec_branch),
-                        .branch_out(exec_branch),
-                        .trap_in(dec_trap),
-                        .trap_out(exec_trap),
-                        .illegal_in(dec_illegal),
-                        .illegal_out(exec_illegal),
-                        .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data : dec_branch_target),
-                        .branch_target_out(exec_branch_target),
-                        .virtual_write_addr_in(dec_virtual_write_addr),
-                        .virtual_write_addr_out(exec_virtual_write_addr),
-                        .physical_write_addr_in(dec_physical_write_addr),
-                        .physical_write_addr_out(exec_physical_write_addr),
-                        .active_list_index_in(dec_active_list_index),
-                        .active_list_index_out(exec_active_list_index));
+                    pde(
+        .clk(clk),
+        .rst_n(rst_n),
+        .flush(pipe_decode_flush),
+        .global_flush(pipe_global_flush),
+        .stall(pipe_exec_stall),
+        
+        .pc_in(dec_pc),
+        .pc_out(exec_pc),
+        .raw_inst_in(dec_raw_inst),
+        .raw_inst_out(exec_raw_inst),
+        .inst_in(dec_inst),
+        .inst_out(exec_inst),
+        .alu_op_in(dec_exec_op),
+        .alu_op_out(exec_alu_op),
+        .exec_src_in(dec_exec_src),
+        .exec_src_out(exec_exec_src),
+        .alu_rs_in(forwarded_rs_data),
+        .alu_rs_out(exec_alu_rs),
+        .alu_rt_in(dec_b_ctrl ? dec_imm : forwarded_rt_data),
+        .alu_rt_out(exec_alu_rt),
+        .mem_enable_in(dec_mem_enable),
+        .mem_enable_out(exec_mem_enable),
+        .mem_write_in(forwarded_rt_data),
+        .mem_write_out(exec_mem_write),
+        .wb_src_in(dec_wb_src),
+        .wb_src_out(exec_wb_src),
+        .wb_reg_in(dec_wb_reg),
+        .wb_reg_out(exec_wb_reg),
+        .branch_in(dec_branch),
+        .branch_out(exec_branch),
+        .trap_in(dec_trap),
+        .trap_out(exec_trap),
+        .illegal_in(dec_illegal),
+        .illegal_out(exec_illegal),
+        .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data : dec_branch_target),
+        .branch_target_out(exec_branch_target),
+        .virtual_write_addr_in(dec_virtual_write_addr),
+        .virtual_write_addr_out(exec_virtual_write_addr),
+        .physical_write_addr_in(dec_physical_write_addr),
+        .physical_write_addr_out(exec_physical_write_addr),
+        .active_list_index_in(dec_active_list_index),
+        .active_list_index_out(exec_active_list_index)
+    );
     
-    execution #(.DATA_WIDTH(DATA_WIDTH))
-                exe(.clk(clk),
-                    .rst_n(rst_n),
-                    
-                    .raw_inst(exec_raw_inst),
-                    .inst(exec_inst),
-                    .exec_src(exec_exec_src),
-                    .alu_op(exec_alu_op),
-                    .alu_rs(exec_alu_rs),
-                    .alu_rt(exec_alu_rt),
+    execution #(.DATA_WIDTH(DATA_WIDTH)) exe(
+        .clk(clk),
+        .rst_n(rst_n),
+        .stall(pipe_exec_stall),
+        
+        .raw_inst(exec_raw_inst),
+        .inst(exec_inst),
+        .exec_src(exec_exec_src),
+        .alu_op(exec_alu_op),
+        .alu_rs(exec_alu_rs),
+        .alu_rt(exec_alu_rt),
 
-                    .branch(exec_branch),
-                    .trap(exec_trap),
-                
-                    .cp0_reg_rw(exec_wb_cp0),
-                    .cp0_reg_read_addr(cp0_reg_read_addr),
-                    .cp0_reg_read(cp0_reg_read),
-                    .cp0_reg_write_addr(exec_cp0_write_addr),
-                    .cp0_reg_write(exec_cp0_write),
+        .branch(exec_branch),
+        .trap(exec_trap),
 
-                    .mem_wb_cp0(dmem_wb_cp0),
-                    .mem_cp0_write_addr(dmem_cp0_write_addr),
-                    .mem_cp0_write(dmem_cp0_write),
+        .cp0_reg_rw(exec_wb_cp0),
+        .cp0_reg_read_addr(cp0_reg_read_addr),
+        .cp0_reg_read(cp0_reg_read),
+        .cp0_reg_write_addr(exec_cp0_write_addr),
+        .cp0_reg_write(exec_cp0_write),
 
-                    .wb_wb_cp0(wb_wb_cp0),
-                    .wb_cp0_write_addr(wb_cp0_write_addr),
-                    .wb_cp0_write(wb_cp0_write),
-                    
-                    .res(exec_res),
-                    .take_branch(exec_take_branch),
-                    .take_trap(exec_take_trap));
+        .mem_wb_cp0(dmem_wb_cp0),
+        .mem_cp0_write_addr(dmem_cp0_write_addr),
+        .mem_cp0_write(dmem_cp0_write),
 
-    pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH))
-                    pem(.clk(clk),
-                        .rst_n(rst_n),
-                        .flush(pipe_exec_flush),
-                        .global_flush(pipe_global_flush),
-                        .stall(pipe_mem_stall),
-                        
-                        .raw_inst_in(exec_raw_inst),
-                        .inst_in(exec_inst),
-                        .alu_res_in(exec_res),
-                        .alu_res_out(dmem_res),
-                        .mem_sel_out(dmem_mem_sel),
-                        .mem_rw_out(dmem_mem_rw),
-                        .mem_enable_in(exec_mem_enable),
-                        .mem_enable_out(dmem_mem_enable),
-                        .mem_write_in(exec_mem_write),
-                        .mem_write_out(dmem_mem_write),
-                        .mem_read_in(dmem_mem_read_raw),
-                        .mem_read_out(dmem_mem_read),
-                        .wb_src_in(exec_wb_src),
-                        .wb_src_out(dmem_wb_src),
-                        .wb_reg_in(exec_wb_reg),
-                        .wb_reg_out(dmem_wb_reg),
-                        .branch_in(exec_branch),
-                        .branch_out(dmem_branch),
-                        .virtual_write_addr_in(exec_virtual_write_addr),
-                        .virtual_write_addr_out(dmem_virtual_write_addr),
-                        .physical_write_addr_in(exec_physical_write_addr),
-                        .physical_write_addr_out(dmem_physical_write_addr),
-                        .active_list_index_in(exec_active_list_index),
-                        .active_list_index_out(dmem_active_list_index),
-                        .wb_cp0_in(exec_wb_cp0),
-                        .wb_cp0_out(dmem_wb_cp0),
-                        .cp0_write_addr_in(exec_cp0_write_addr),
-                        .cp0_write_addr_out(dmem_cp0_write_addr),
-                        .cp0_write_in(exec_cp0_write),
-                        .cp0_write_out(dmem_cp0_write));
+        .wb_wb_cp0(wb_wb_cp0),
+        .wb_cp0_write_addr(wb_cp0_write_addr),
+        .wb_cp0_write(wb_cp0_write),
+        
+        .res(exec_res),
+        .take_branch(exec_take_branch),
+        .take_trap(exec_take_trap)
+    );
+
+    pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH)) pem(
+        .clk(clk),
+        .rst_n(rst_n),
+        .flush(pipe_exec_flush),
+        .global_flush(pipe_global_flush),
+        .stall(pipe_mem_stall),
+        
+        .raw_inst_in(exec_raw_inst),
+        .inst_in(exec_inst),
+        .alu_res_in(exec_res),
+        .alu_res_out(dmem_res),
+        .mem_sel_out(dmem_mem_sel),
+        .mem_rw_out(dmem_mem_rw),
+        .mem_enable_in(exec_mem_enable),
+        .mem_enable_out(dmem_mem_enable),
+        .mem_write_in(exec_mem_write),
+        .mem_write_out(dmem_mem_write),
+        .mem_read_in(dmem_mem_read_raw),
+        .mem_read_out(dmem_mem_read),
+        .wb_src_in(exec_wb_src),
+        .wb_src_out(dmem_wb_src),
+        .wb_reg_in(exec_wb_reg),
+        .wb_reg_out(dmem_wb_reg),
+        .branch_in(exec_branch),
+        .branch_out(dmem_branch),
+        .virtual_write_addr_in(exec_virtual_write_addr),
+        .virtual_write_addr_out(dmem_virtual_write_addr),
+        .physical_write_addr_in(exec_physical_write_addr),
+        .physical_write_addr_out(dmem_physical_write_addr),
+        .active_list_index_in(exec_active_list_index),
+        .active_list_index_out(dmem_active_list_index),
+        .wb_cp0_in(exec_wb_cp0),
+        .wb_cp0_out(dmem_wb_cp0),
+        .cp0_write_addr_in(exec_cp0_write_addr),
+        .cp0_write_addr_out(dmem_cp0_write_addr),
+        .cp0_write_in(exec_cp0_write),
+        .cp0_write_out(dmem_cp0_write)
+    );
 
     always @* // select which value should we write back to register file.
     begin
@@ -477,230 +482,206 @@ module mips_cpu #(
         end
     end
 
-    memory_access #(.DATA_WIDTH(DATA_WIDTH))
-                    mem(.clk(clk),
-                        .rst_n(rst_n),
+    memory_access #(.DATA_WIDTH(DATA_WIDTH)) mem(
+        .clk(clk),
+        .rst_n(rst_n),
 
-                        .cp0_status(cp0_status),
-                        .cp0_cause(cp0_cause),
-                        .cp0_epc(cp0_epc),
+        .cp0_status(cp0_status),
+        .cp0_cause(cp0_cause),
+        .cp0_epc(cp0_epc),
 
-                        .wb_wb_cp0(wb_wb_cp0),
-                        .wb_cp0_write_addr(wb_cp0_write_addr),
-                        .wb_cp0_write(wb_cp0_write),
+        .wb_wb_cp0(wb_wb_cp0),
+        .wb_cp0_write_addr(wb_cp0_write_addr),
+        .wb_cp0_write(wb_cp0_write),
 
-                        .force_disable_mem(force_disable_mem),
+        .force_disable_mem(force_disable_mem),
 
-                        .mem_cp0_status_override(mem_cp0_status),
-                        .mem_cp0_cause_override(mem_cp0_cause),
-                        .mem_cp0_epc_override(mem_cp0_epc));
-
-    bram_controller #(.DATA_WIDTH(DATA_WIDTH),
-                      .BRAM_ADDR_WIDTH(BRAM_ADDR_WIDTH),
-                      .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH))
-                    ram(.clk(clk),
-                        .rst_n(rst_n),
-
-                        .addr(ram_addr),
-                        .enable(ram_enable),
-                        .rw(ram_rw),
-                        
-                        .op_size(ram_op_size),
-                        .finishes_op(ram_finishes_op),
-
-                        .data_write(ram_write),
-                        .data_write_req_input(ram_write_req_input),
-
-                        .data_read(ram_read),
-                        .data_read_valid(ram_read_valid),
-
-                        .finished(ram_last),
-
-                        // BRAM interface
-                        .ena(bram_ena),
-                        .wea(bram_wea),
-                        .addra(bram_addra),
-                        .dina(bram_dina),
-                        .douta(bram_douta)
-                        );
-    
+        .mem_cp0_status_override(mem_cp0_status),
+        .mem_cp0_cause_override(mem_cp0_cause),
+        .mem_cp0_epc_override(mem_cp0_epc)
+    );
     
     data_cache #(.DATA_WIDTH(DATA_WIDTH),
                  .ASSO_WIDTH(ASSO_WIDTH),
                  .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH),
                  .INDEX_WIDTH(INDEX_WIDTH),
                  .TAG_WIDTH(TAG_WIDTH))
-                dcache(.clk(clk),
-                       .rst_n(rst_n),
-                       
-                       .addr(dmem_res),
-                       .enable(dmem_mem_enable),
-                       .rw(dmem_mem_rw),
+                dcache(
+        .clk(clk),
+        .rst_n(rst_n),
+        
+        .addr(dmem_res),
+        .enable(dmem_mem_enable),
+        .rw(dmem_mem_rw),
 
-                       .write(dmem_mem_write),
-                       .mem_sel(dmem_mem_sel),
+        .write(dmem_mem_write),
+        .mem_sel(dmem_mem_sel),
 
-                       .read(dmem_mem_read_raw),
-                       .rw_valid(dmem_mem_rw_valid),
-                       
-                       .ready(dmem_ready), // for memory prediction
-                       
-                       .mem_addr(memctrl_dmem_addr),
-                       .mem_enable(memctrl_dmem_enable),
-                       .mem_rw(memctrl_dmem_rw),
-                       
-                       .mem_read(memctrl_dmem_read),
-                       .mem_read_valid(memctrl_dmem_read_valid),
-                       
-                       .mem_write(memctrl_dmem_write),
-                       .mem_write_req_input(memctrl_dmem_req_data),
-                       
-                       .mem_last(memctrl_dmem_last));
+        .read(dmem_mem_read_raw),
+        .rw_valid(dmem_mem_rw_valid),
+        
+        .ready(dmem_ready), // for memory prediction
+        
+        .mem_addr(memctrl_dmem_addr),
+        .mem_enable(memctrl_dmem_enable),
+        .mem_rw(memctrl_dmem_rw),
+        
+        .mem_read(memctrl_dmem_read),
+        .mem_read_valid(memctrl_dmem_read_valid),
+        
+        .mem_write(memctrl_dmem_write),
+        .mem_write_req_input(memctrl_dmem_req_data),
+        
+        .mem_last(memctrl_dmem_last)
+    );
 
-    memory_controller #(.DATA_WIDTH(DATA_WIDTH))
-                    memctrl(.clk(clk),
-                            .rst_n(rst_n),
-                            .force_disable(force_disable_mem),
-                            
-                            .imem_addr(memctrl_imem_addr),
-                            .imem_enable(memctrl_imem_enable),
-                            
-                            .imem_read(memctrl_imem_read),
-                            .imem_read_valid(memctrl_imem_read_valid),
+    memory_controller #(.DATA_WIDTH(DATA_WIDTH)) memctrl(
+        .clk(clk),
+        .rst_n(rst_n),
+        .force_disable(force_disable_mem),
+        
+        .imem_addr(memctrl_imem_addr),
+        .imem_enable(memctrl_imem_enable),
+        
+        .imem_read(memctrl_imem_read),
+        .imem_read_valid(memctrl_imem_read_valid),
 
-                            .imem_last(memctrl_imem_last),
-                            
-                            .dmem_addr(memctrl_dmem_addr),
-                            .dmem_enable(memctrl_dmem_enable),
-                            .dmem_rw(memctrl_dmem_rw),
+        .imem_last(memctrl_imem_last),
+        
+        .dmem_addr(memctrl_dmem_addr),
+        .dmem_enable(memctrl_dmem_enable),
+        .dmem_rw(memctrl_dmem_rw),
 
-                            .dmem_write(memctrl_dmem_write),
-                            .dmem_req_data(memctrl_dmem_req_data),
+        .dmem_write(memctrl_dmem_write),
+        .dmem_req_data(memctrl_dmem_req_data),
 
-                            .dmem_read(memctrl_dmem_read),
-                            .dmem_read_valid(memctrl_dmem_read_valid),
+        .dmem_read(memctrl_dmem_read),
+        .dmem_read_valid(memctrl_dmem_read_valid),
 
-                            .dmem_last(memctrl_dmem_last),
+        .dmem_last(memctrl_dmem_last),
 
-                            .external_addr(external_addr),
-                            .external_enable(external_enable),
-                            .external_rw(external_rw),
-                            
-                            .external_op_size(external_op_size),
-                            .external_finishes_op(external_finishes_op),
+        .external_addr(external_addr),
+        .external_enable(external_enable),
+        .external_rw(external_rw),
+        
+        .external_op_size(external_op_size),
+        .external_finishes_op(external_finishes_op),
 
-                            .external_read(external_read),
-                            .external_read_valid(external_read_valid),
-                            .external_write(external_write),
-                            .external_req_data(external_req_data),
+        .external_read(external_read),
+        .external_read_valid(external_read_valid),
+        .external_write(external_write),
+        .external_req_data(external_req_data),
 
-                            .external_last(external_last),
+        .external_last(external_last),
 
-                            .mem_addr(ram_addr),
-                            .mem_enable(ram_enable),
-                            .mem_rw(ram_rw),
-                            
-                            .mem_op_size(ram_op_size),
-                            .mem_finishes_op(ram_finishes_op),
+        .mem_addr(ram_addr),
+        .mem_enable(ram_enable),
+        .mem_rw(ram_rw),
+        
+        .mem_op_size(ram_op_size),
+        .mem_finishes_op(ram_finishes_op),
 
-                            .mem_write(ram_write),
-                            .mem_write_req_input(ram_write_req_input),
+        .mem_write(ram_write),
+        .mem_write_req_input(ram_write_req_input),
 
-                            .mem_read(ram_read),
-                            .mem_read_valid(ram_read_valid),
+        .mem_read(ram_read),
+        .mem_read_valid(ram_read_valid),
 
-                            .mem_last(ram_last)
-                    );
+        .mem_last(ram_last)
+    );
 
-    pipeline_mem2wb #(.DATA_WIDTH(DATA_WIDTH))
-                    pmw(.clk(clk),
-                        .rst_n(rst_n),
-                        .flush(pipe_wb_flush),
-                        .global_flush(pipe_global_flush),
-                        .stall(pipe_wb_stall),
-                        
-                        .wb_reg_in(dmem_wb_reg),
-                        .wb_reg_out(wb_wb_reg),
-                        .reg_write_in(dmem_write),
-                        .reg_write_out(wb_write),
-                        .virtual_write_addr_in(dmem_virtual_write_addr),
-                        .virtual_write_addr_out(wb_virtual_write_addr),
-                        .physical_write_addr_in(dmem_physical_write_addr),
-                        .physical_write_addr_out(wb_physical_write_addr),
-                        .active_list_index_in(dmem_active_list_index),
-                        .active_list_index_out(wb_active_list_index),
-                        .wb_cp0_in(dmem_wb_cp0),
-                        .wb_cp0_out(wb_wb_cp0),
-                        .cp0_write_addr_in(dmem_cp0_write_addr),
-                        .cp0_write_addr_out(wb_cp0_write_addr),
-                        .cp0_write_in(dmem_cp0_write),
-                        .cp0_write_out(wb_cp0_write));
+    pipeline_mem2wb #(.DATA_WIDTH(DATA_WIDTH)) pmw(
+        .clk(clk),
+        .rst_n(rst_n),
+        .flush(pipe_wb_flush),
+        .global_flush(pipe_global_flush),
+        .stall(pipe_wb_stall),
+        
+        .wb_reg_in(dmem_wb_reg),
+        .wb_reg_out(wb_wb_reg),
+        .reg_write_in(dmem_write),
+        .reg_write_out(wb_write),
+        .virtual_write_addr_in(dmem_virtual_write_addr),
+        .virtual_write_addr_out(wb_virtual_write_addr),
+        .physical_write_addr_in(dmem_physical_write_addr),
+        .physical_write_addr_out(wb_physical_write_addr),
+        .active_list_index_in(dmem_active_list_index),
+        .active_list_index_out(wb_active_list_index),
+        .wb_cp0_in(dmem_wb_cp0),
+        .wb_cp0_out(wb_wb_cp0),
+        .cp0_write_addr_in(dmem_cp0_write_addr),
+        .cp0_write_addr_out(wb_cp0_write_addr),
+        .cp0_write_in(dmem_cp0_write),
+        .cp0_write_out(wb_cp0_write)
+    );
 
-    coprocessor0 #(.DATA_WIDTH(DATA_WIDTH))
-                cp0(.clk(clk),
-                    .rst_n(rst_n),
-                    
-                    .reg_we(exec_wb_cp0),
-                    .reg_read_addr(cp0_reg_read_addr),
-                    .reg_read(cp0_reg_read),
-                    .reg_write_addr(exec_cp0_write_addr),
-                    .reg_write(exec_cp0_write),
-                    
-                    .count(cp0_count),
-                    .compare(cp0_compare),
-                    .status(cp0_status),
-                    .cause(cp0_cause),
-                    .epc(cp0_epc),
-                    .prid(cp0_prid),
-                    .cfg(cp0_cfg),
-                    
-                    .timer_interrupt(cp0_timer_interrupt));
+    coprocessor0 #(.DATA_WIDTH(DATA_WIDTH)) cp0(
+        .clk(clk),
+        .rst_n(rst_n),
+        
+        .reg_we(exec_wb_cp0),
+        .reg_read_addr(cp0_reg_read_addr),
+        .reg_read(cp0_reg_read),
+        .reg_write_addr(exec_cp0_write_addr),
+        .reg_write(exec_cp0_write),
+        
+        .count(cp0_count),
+        .compare(cp0_compare),
+        .status(cp0_status),
+        .cause(cp0_cause),
+        .epc(cp0_epc),
+        .prid(cp0_prid),
+        .cfg(cp0_cfg),
+        
+        .timer_interrupt(cp0_timer_interrupt)
+    );
     
-    pipeline #(.DATA_WIDTH(DATA_WIDTH))
-                ppl(.clk(clk),
-                    .rst_n(rst_n),
-                    
-                    .external_done(external_done),
-                    .done(done),
-                    
-                    .regfile_stall(regfile_stall),
-                    
-                    .fetch_done(imem_data_valid),
+    pipeline #(.DATA_WIDTH(DATA_WIDTH)) ppl(
+        .clk(clk),
+        .rst_n(rst_n),
+        
+        .external_done(external_done),
+        .done(done),
+        
+        .regfile_stall(regfile_stall),
+        
+        .fetch_done(imem_data_valid),
 
-                    .dec_rs_enable(dec_rs_enable),
-                    .dec_rs_addr(dec_prs_addr),
-                    .dec_rt_enable(dec_rt_enable),
-                    .dec_rt_addr(dec_prt_addr),
-                    .decode_branch(dec_branch),
-                    
-                    .exec_physical_write_addr(exec_physical_write_addr),
-                    .exec_mem_enable(exec_mem_enable),
-                    .exec_wb_reg(exec_wb_reg),
-                    .exec_take_branch(exec_take_branch),
-                    .exec_branch_target(exec_branch_target),
-                    
-                    .mem_done(dmem_done),
-                    
-                    .fetch_stall(pipe_fetch_stall),
-                    .fetch_flush(pipe_fetch_flush),
+        .dec_rs_enable(dec_rs_enable),
+        .dec_rs_addr(dec_prs_addr),
+        .dec_rt_enable(dec_rt_enable),
+        .dec_rt_addr(dec_prt_addr),
+        .decode_branch(dec_branch),
+        
+        .exec_physical_write_addr(exec_physical_write_addr),
+        .exec_mem_enable(exec_mem_enable),
+        .exec_wb_reg(exec_wb_reg),
+        .exec_take_branch(exec_take_branch),
+        .exec_branch_target(exec_branch_target),
+        
+        .mem_done(dmem_done),
+        
+        .fetch_stall(pipe_fetch_stall),
+        .fetch_flush(pipe_fetch_flush),
 
-                    .decode_stall(pipe_decode_stall),
-                    .decode_flush(pipe_decode_flush),
+        .decode_stall(pipe_decode_stall),
+        .decode_flush(pipe_decode_flush),
 
-                    .exec_stall(pipe_exec_stall),
-                    .exec_flush(pipe_exec_flush),
+        .exec_stall(pipe_exec_stall),
+        .exec_flush(pipe_exec_flush),
 
-                    .mem_stall(pipe_mem_stall),
-                    .mem_flush(pipe_mem_flush),
+        .mem_stall(pipe_mem_stall),
+        .mem_flush(pipe_mem_flush),
 
-                    .wb_stall(pipe_wb_stall),
-                    .wb_flush(pipe_wb_flush),
+        .wb_stall(pipe_wb_stall),
+        .wb_flush(pipe_wb_flush),
 
-                    .global_flush(pipe_global_flush),
+        .global_flush(pipe_global_flush),
 
-                    .fetch_branch(fetch_rw),
-                    .fetch_branch_target(fetch_write),
-                    
-                    .exception(),
-                    .mem_cp0_epc(mem_cp0_epc));
+        .fetch_branch(fetch_rw),
+        .fetch_branch_target(fetch_write),
+        
+        .exception(),
+        .mem_cp0_epc(mem_cp0_epc
+    ));
 endmodule
