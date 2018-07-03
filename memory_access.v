@@ -93,19 +93,22 @@ module memory_access#(parameter DATA_WIDTH = 32)(
         end
     end
 
-    exception_handler #(.DATA_WIDTH(DATA_WIDTH))
-                    except(
-                        .clk(clk),
-                        .rst_n(rst_n),
+    exception_handler #(.DATA_WIDTH(DATA_WIDTH)) except(
+        .clk(clk),
+        .rst_n(rst_n),
 
-                        .cp0_status(mem_cp0_status_override),
-                        .cp0_cause(mem_cp0_cause_override),
-                        .cp0_epc(mem_cp0_epc_override),
+        .cp0_status(mem_cp0_status_override),
+        .cp0_cause(mem_cp0_cause_override),
+        .cp0_epc(mem_cp0_epc_override),
 
-                        .wb_wb_cp0(wb_wb_cp0),
-                        .wb_cp0_write_addr(wb_cp0_write_addr),
-                        .wb_cp0_write(wb_cp0_write),
+        .wb_wb_cp0(wb_wb_cp0),
+        .wb_cp0_write_addr(wb_cp0_write_addr),
+        .wb_cp0_write(wb_cp0_write),
 
-                        .force_disable_mem(force_disable_mem)
-                    );
+        .exception_mask(),
+        .pc(),
+        .exception(),
+
+        .force_disable_mem(force_disable_mem)
+    );
 endmodule

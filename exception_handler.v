@@ -21,9 +21,7 @@
 
 `include "defines.v"
 
-module exception_handler#(
-	parameter DATA_WIDTH = 32
-)(
+module exception_handler#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
 

@@ -23,6 +23,7 @@
 module execution#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
+    input stall,
 
     input [`DATA_BUS] raw_inst,
     input [`INST_BUS] inst,
@@ -85,29 +86,31 @@ module execution#(parameter DATA_WIDTH = 32)(
             cp0_reg_override <= wb_cp0_write;
     end
     
-    move #(.DATA_WIDTH(DATA_WIDTH))
-            mov(.clk(clk),
-                .rst_n(rst_n),
+    move #(.DATA_WIDTH(DATA_WIDTH)) mov(
+        .clk(clk),
+        .rst_n(rst_n),
 
-                .raw_inst(raw_inst),
-                .inst(inst),
-                .exec_src(exec_src),
-                
-                .cp0_reg_rw(cp0_reg_rw),
-                .cp0_reg_read_addr(cp0_reg_read_addr),
-                .cp0_reg_read(cp0_reg_override),
-                .cp0_reg_write_addr(cp0_reg_write_addr),
-                .cp0_reg_write(cp0_reg_write),
+        .raw_inst(raw_inst),
+        .inst(inst),
+        .exec_src(exec_src),
+        
+        .cp0_reg_rw(cp0_reg_rw),
+        .cp0_reg_read_addr(cp0_reg_read_addr),
+        .cp0_reg_read(cp0_reg_override),
+        .cp0_reg_write_addr(cp0_reg_write_addr),
+        .cp0_reg_write(cp0_reg_write),
 
-                .data(alu_rs),
+        .data(alu_rs),
 
-                .res(move_res));
-                         
-    arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH))
-                    alu(.stall(pipe_exec_stall),
-                        .en(exec_src == `EX_ALU),
-                        .op(alu_op),
-                        .rs(alu_rs),
-                        .rt(alu_rt),
-                        .rd(alu_rd));
+        .res(move_res)
+    );
+    
+    arithmetic_logic_unit #(.DATA_WIDTH(DATA_WIDTH)) alu(
+        .stall(stall),
+        .en(exec_src == `EX_ALU),
+        .op(alu_op),
+        .rs(alu_rs),
+        .rt(alu_rt),
+        .rd(alu_rd)
+    );
 endmodule
