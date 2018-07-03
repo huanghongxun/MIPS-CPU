@@ -36,7 +36,6 @@ module pipeline_exec2mem #(
     input      [`DATA_BUS] alu_res_in, // Arithmetic result or memory address
     output reg [`DATA_BUS] alu_res_out,
     output reg       [3:0] mem_sel_out,
-    input                  mem_rw_in,
     output reg             mem_rw_out,
     input                  mem_enable_in,
     output reg             mem_enable_out,

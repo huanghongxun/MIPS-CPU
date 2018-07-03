@@ -489,8 +489,11 @@ module mips_cpu #(
                         .wb_cp0_write_addr(wb_cp0_write_addr),
                         .wb_cp0_write(wb_cp0_write),
 
-                        .force_disable_mem(force_disable_mem)
-                    );
+                        .force_disable_mem(force_disable_mem),
+
+                        .mem_cp0_status_override(mem_cp0_status),
+                        .mem_cp0_cause_override(mem_cp0_cause),
+                        .mem_cp0_epc_override(mem_cp0_epc));
 
     bram_controller #(.DATA_WIDTH(DATA_WIDTH),
                       .BRAM_ADDR_WIDTH(BRAM_ADDR_WIDTH),
@@ -664,7 +667,9 @@ module mips_cpu #(
                     
                     .fetch_done(imem_data_valid),
 
+                    .dec_rs_enable(dec_rs_enable),
                     .dec_rs_addr(dec_prs_addr),
+                    .dec_rt_enable(dec_rt_enable),
                     .dec_rt_addr(dec_prt_addr),
                     .decode_branch(dec_branch),
                     
@@ -694,5 +699,8 @@ module mips_cpu #(
                     .global_flush(pipe_global_flush),
 
                     .fetch_branch(fetch_rw),
-                    .fetch_branch_target(fetch_write));
+                    .fetch_branch_target(fetch_write),
+                    
+                    .exception(),
+                    .mem_cp0_epc(mem_cp0_epc));
 endmodule

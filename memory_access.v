@@ -33,11 +33,12 @@ module memory_access#(parameter DATA_WIDTH = 32)(
     input [`CP0_REG_BUS] wb_cp0_write_addr,
     input [`DATA_BUS] wb_cp0_write,
 
-    output force_disable_mem
+    output force_disable_mem,
+
+    output reg [`DATA_BUS] mem_cp0_status_override,
+    output reg [`DATA_BUS] mem_cp0_epc_override,
+    output reg [`DATA_BUS] mem_cp0_cause_override
 );
-    reg [`DATA_BUS] mem_cp0_status_override;
-    reg [`DATA_BUS] mem_cp0_epc_override;
-    reg [`DATA_BUS] mem_cp0_cause_override;
 
     // ==== Data forwarding ====
 

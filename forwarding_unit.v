@@ -27,11 +27,9 @@
 module forwarding_unit#(parameter DATA_WIDTH = 32)(
     // feedback from decode stage
     input dec_rs_enable,
-    input [`VREG_BUS] dec_vrs_addr,
     input [`PREG_BUS] dec_prs_addr,
     input [`DATA_BUS] dec_rs_data,
     input dec_rt_enable,
-    input [`VREG_BUS] dec_vrt_addr,
     input [`PREG_BUS] dec_prt_addr,
     input [`DATA_BUS] dec_rt_data,
 

@@ -35,9 +35,6 @@ module coprocessor0#(
 
     input [5:0] hardware_int,
 
-    input pipe_decode_stall,
-    input pipe_exec_stall,
-
     input [`DATA_BUS] exception,
     input [`DATA_BUS] pc,
 

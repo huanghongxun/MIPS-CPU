@@ -53,9 +53,6 @@ module pipeline#(parameter DATA_WIDTH = 32)(
     // memory access
     input mem_done,
 
-    // write back
-    input wb_enable,
-
     
     // ======= Data Hazards ========
     // fetch
@@ -87,7 +84,7 @@ module pipeline#(parameter DATA_WIDTH = 32)(
     // ======= Exception Handler ========
     
     input [`DATA_BUS] exception,
-    input [`DATA_BUS] cp0_reg_epc
+    input [`DATA_BUS] mem_cp0_epc
     );
 
     reg fetch_load;
@@ -298,7 +295,7 @@ module pipeline#(parameter DATA_WIDTH = 32)(
                         fetch_addr <= `EXCEPT_OVERFLOW_ADDR;
                     end
                     `EXCEPT_ERET: begin
-                        fetch_addr <= cp0_reg_epc;
+                        fetch_addr <= mem_cp0_epc;
                     end
                     default: begin
                         fetch_addr <= 0;

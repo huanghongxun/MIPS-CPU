@@ -45,8 +45,6 @@ module pipeline_dec2exec #(
     output reg [`DATA_BUS] alu_rs_out,
     input      [`DATA_BUS] alu_rt_in,
     output reg [`DATA_BUS] alu_rt_out, // must process b_ctrl
-    input                  mem_rw_in,
-    output reg             mem_rw_out,
     input                  mem_enable_in,
     output reg             mem_enable_out,
     input      [`DATA_BUS] mem_write_in,
@@ -82,7 +80,6 @@ module pipeline_dec2exec #(
             alu_rs_out <= 0;
             alu_rt_out <= 0;
             inst_out <= 0;
-            mem_rw_out <= 0;
             mem_enable_out <= 0;
             mem_write_out <= 0;
             wb_src_out <= 0;
@@ -108,7 +105,6 @@ module pipeline_dec2exec #(
                     alu_rs_out <= 0;
                     alu_rt_out <= 0;
                     inst_out <= 0;
-                    mem_rw_out <= 0;
                     mem_enable_out <= 0;
                     mem_write_out <= 0;
                     wb_src_out <= 0;
@@ -130,7 +126,6 @@ module pipeline_dec2exec #(
                     alu_rs_out <= alu_rs_in;
                     alu_rt_out <= alu_rt_in;
                     inst_out <= inst_in;
-                    mem_rw_out <= mem_rw_in;
                     mem_enable_out <= mem_enable_in;
                     mem_write_out <= mem_write_in;
                     wb_src_out <= wb_src_in;
