@@ -22,9 +22,7 @@
 `include "defines.v"
 
 module pipeline_exec2mem #(
-    parameter ADDR_WIDTH = 32,
     parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5,
     parameter FREE_LIST_WIDTH = 3
 )(
     input clk,

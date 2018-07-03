@@ -20,11 +20,7 @@
 
 `include "defines.v"
 
-module execution#(
-	parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16,
-    parameter REG_ADDR_WIDTH = 5
-)(
+module execution#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
 
@@ -89,9 +85,7 @@ module execution#(
             cp0_reg_override <= wb_cp0_write;
     end
     
-    move #(.DATA_WIDTH(DATA_WIDTH),
-           .ADDR_WIDTH(ADDR_WIDTH),
-           .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    move #(.DATA_WIDTH(DATA_WIDTH))
             mov(.clk(clk),
                 .rst_n(rst_n),
 

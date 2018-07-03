@@ -23,8 +23,6 @@
 
 module pipeline_mem2wb #(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 18,
-    parameter REG_ADDR_WIDTH = 5,
     parameter FREE_LIST_WIDTH = 3
 )(
     input      clk,

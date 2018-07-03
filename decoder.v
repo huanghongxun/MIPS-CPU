@@ -22,14 +22,10 @@
 
 `include "defines.v"
 
-module decoder #(
-    parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 18,
-    parameter REG_ADDR_WIDTH = 5
-)(
+module decoder #(parameter DATA_WIDTH = 32)(
     input stall,
 
-    input [`ADDR_BUS] pc,
+    input [`DATA_BUS] pc,
     input [`DATA_BUS] raw_inst,
 
     output reg rs_enable, // 1 if rs is valid
@@ -41,7 +37,7 @@ module decoder #(
     output reg [`DATA_BUS] imm, // immediate for I-type instruction.
     output reg [`INST_WIDTH-1:0] inst,
     output reg [`ALU_OP_WIDTH-1:0] exec_op, // ALU operation id.
-    output reg [`ADDR_BUS] addr, // jump_target for J-type instruction.
+    output reg [`DATA_BUS] addr, // jump_target for J-type instruction.
     output reg [`EX_SRC_BUS] exec_src, // ALU, IPU, FPU, External
     output reg b_ctrl, // 1 if use immediate value instead of rt
     output mem_enable, // 1 if enable memory, 0 if disable memory 
@@ -151,10 +147,10 @@ module decoder #(
 `endif
                     end
                     6'b001001: begin // jalr
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 31, `REG_WB, `INST_JALR, `ALU_OP_ADDU, (pc + 2), 0, `EX_ALU, `B_IMM, `WB_ALU);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 31, `REG_WB, `INST_JALR, `ALU_OP_ADDU, (pc + 8), 0, `EX_ALU, `B_IMM, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
-                            $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 2));
+                            $display("%x: jalr, rs: %d, dest: %x", pc, rs_wire, (pc + 8));
 `endif
                     end
                     6'b001010: begin // movz
@@ -345,17 +341,17 @@ module decoder #(
             6'b000001:
                 case (rt_wire)
                     5'b00000: begin // bltz
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLTZ, `ALU_OP_LT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLTZ, `ALU_OP_LT, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
-                            $display("%x: bltz, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(addr_wire), (pc + 1 + $signed(addr_wire)));
+                            $display("%x: bltz, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
                     end
                     5'b00001: begin // bgez
-                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGEZ, `ALU_OP_GE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                        `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGEZ, `ALU_OP_GE, 0, (pc + 4 + 4 * $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                         if (!stall)
-                            $display("%x: bgez, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(addr_wire), (pc + 1 + $signed(addr_wire)));
+                            $display("%x: bgez, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
                     end
                     default: begin
@@ -412,47 +408,45 @@ module decoder #(
                 endcase
             end
             6'b000010: begin // j
-                // since address width less than 32, use pc <- addr instead of pc <- { pc[31:28], addr }.
-                `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_J, `ALU_OP_ADDU, 0, addr_wire, `EX_ALU, `B_REG, `WB_ALU);
+                `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_J, `ALU_OP_ADDU, 0, ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00}), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: j, dest: %x", pc, addr_wire);
+                    $display("%x: j, dest: %x", pc, { pc[DATA_WIDTH-1:28], addr_wire, 2'b00});
 `endif
             end
             6'b000011: begin // jal
-                // since address width less than 32, use pc <- addr instead of pc <- { pc[31:28], addr }.
-                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `REG_WB, `INST_JAL, `ALU_OP_ADDU, (pc + 2), addr_wire, `EX_ALU, `B_IMM, `WB_ALU);
+                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `REG_WB, `INST_JAL, `ALU_OP_ADDU, (pc + 8), ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00}), `EX_ALU, `B_IMM, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 2), addr_wire);
+                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 8), { pc[DATA_WIDTH-1:28], addr_wire, 2'b00});
 `endif
             end
             6'b000100: begin // beq
-                `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_BEQ, `ALU_OP_EQ, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_BEQ, `ALU_OP_EQ, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: beq, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, rt_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
+                    $display("%x: beq, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, rt_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
             end
             6'b000101: begin // bne
-                `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_BNE, `ALU_OP_NE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                `decode(rs_wire, `RS_EN, rt_wire, `RT_EN, 0, `REG_N, `INST_BNE, `ALU_OP_NE, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: bne, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, rt_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
+                    $display("%x: bne, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, rt_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
             end
             6'b000110: begin // blez
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLEZ, `ALU_OP_LE, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLEZ, `ALU_OP_LE, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: blez, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
+                    $display("%x: blez, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
             end
             6'b000111: begin // bgtz
-                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGTZ, `ALU_OP_GT, 0, (pc + 1 + $signed(addr_wire)), `EX_ALU, `B_REG, `WB_ALU);
+                `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BGTZ, `ALU_OP_GT, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: bgtz, rs: %d, offset: %x, dest: %x", pc, rs_wire, addr_wire, (pc + 1 + $signed(addr_wire)));
+                    $display("%x: bgtz, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
             end
             6'b001000: begin // addi

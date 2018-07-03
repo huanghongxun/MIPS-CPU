@@ -23,19 +23,20 @@
 
 module mips_cpu #(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16,
-    parameter REG_ADDR_WIDTH = 5,
+    parameter DATA_PER_BYTE_WIDTH = 2,
+    parameter BRAM_ADDR_WIDTH = 16,
     parameter FREE_LIST_WIDTH = 3,
+
     parameter ASSO_WIDTH = 1, // for n-way associative caching
     parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
     parameter INDEX_WIDTH = 3,
-    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
+    parameter TAG_WIDTH = DATA_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH - DATA_PER_BYTE_WIDTH // Upper 22 bits of the physical address (the tag) are compared to the 22 bit tag field at that cache entry.
 )(
     input clk, // 100MHz clock signal
     input rst_n,
     
     // Interface with external device
-    input [`ADDR_BUS] external_addr,
+    input [`DATA_BUS] external_addr,
     input external_enable,
     input external_rw,
     input external_op_size,
@@ -50,15 +51,15 @@ module mips_cpu #(
     // block memory generator
     output bram_ena,
     output bram_wea,
-    output [`ADDR_BUS] bram_addra,
+    output [`BRAM_ADDR_BUS] bram_addra,
     output [`DATA_BUS] bram_dina,
     input [`DATA_BUS] bram_douta
     );
 
     wire pipe_fetch_stall;
     wire fetch_rw;
-    wire [`ADDR_BUS] fetch_write;
-    wire [`ADDR_BUS] fetch_pc;
+    wire [`DATA_BUS] fetch_write;
+    wire [`DATA_BUS] fetch_pc;
 
     wire imem_ready;
     wire [`DATA_BUS] imem_data;
@@ -72,7 +73,7 @@ module mips_cpu #(
     wire pipe_decode_stall;
     wire dec_bubble;
 
-    wire [`ADDR_BUS] dec_pc;
+    wire [`DATA_BUS] dec_pc;
     wire [`DATA_BUS] dec_raw_inst;
     wire [`VREG_BUS] dec_vrs_addr;
     wire [`VREG_BUS] dec_vrt_addr;
@@ -95,7 +96,7 @@ module mips_cpu #(
     wire dec_wb_reg;
     wire dec_branch, dec_trap, dec_illegal;
     wire [1:0] dec_jump;
-    wire [`ADDR_BUS] dec_branch_target;
+    wire [`DATA_BUS] dec_branch_target;
     
     wire regfile_stall;
 
@@ -111,13 +112,13 @@ module mips_cpu #(
     wire exec_wb_src;
     wire exec_wb_reg;
     wire exec_branch, exec_trap, exec_illegal;
-    wire [`ADDR_BUS] exec_branch_target;
+    wire [`DATA_BUS] exec_branch_target;
     
     wire [`VREG_BUS] exec_virtual_write_addr;
     wire [`PREG_BUS] exec_physical_write_addr;
     wire [FREE_LIST_WIDTH-1:0] exec_active_list_index;
 
-    wire [`ADDR_BUS] exec_pc;
+    wire [`DATA_BUS] exec_pc;
 
     wire [`ALU_OP_WIDTH-1:0] exec_alu_op;
     wire [`DATA_BUS] exec_alu_rs;
@@ -196,7 +197,7 @@ module mips_cpu #(
     
     // ram
 
-    wire [`ADDR_BUS] ram_addr;
+    wire [`DATA_BUS] ram_addr;
     wire ram_enable;
     wire ram_rw;
     wire ram_op_size;
@@ -209,13 +210,13 @@ module mips_cpu #(
 
     // memctrl
 
-    wire [`ADDR_BUS] memctrl_imem_addr;
+    wire [`DATA_BUS] memctrl_imem_addr;
     wire memctrl_imem_enable;
     wire [`DATA_BUS] memctrl_imem_read;
     wire memctrl_imem_read_valid;
     wire memctrl_imem_last;
 
-    wire [`ADDR_BUS] memctrl_dmem_addr;
+    wire [`DATA_BUS] memctrl_dmem_addr;
     wire memctrl_dmem_enable;
     wire memctrl_dmem_rw;
     wire [`DATA_BUS] memctrl_dmem_write;
@@ -226,17 +227,17 @@ module mips_cpu #(
     
     wire done = exec_inst == `INST_TEST_DONE;
     
-    fetch_unit fetch(.clk(clk),
-                     .rst_n(rst_n),
-                     .stall(pipe_fetch_stall),
-                     
-                     .rw(fetch_rw),
-                     .write(fetch_write),
-                     
-                     .pc(fetch_pc));
+    fetch_unit #(.DATA_WIDTH(DATA_WIDTH))
+                fetch(.clk(clk),
+                    .rst_n(rst_n),
+                    .stall(pipe_fetch_stall),
+                    
+                    .rw(fetch_rw),
+                    .write(fetch_write),
+                    
+                    .pc(fetch_pc));
 
     inst_cache#(.DATA_WIDTH(DATA_WIDTH),
-                .ADDR_WIDTH(ADDR_WIDTH),
                 .ASSO_WIDTH(ASSO_WIDTH),
                 .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH),
                 .INDEX_WIDTH(INDEX_WIDTH),
@@ -259,8 +260,7 @@ module mips_cpu #(
                        .mem_read_valid(memctrl_imem_read_valid),
                        .mem_last(memctrl_imem_last));
 
-    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH),
-                         .ADDR_WIDTH(ADDR_WIDTH))
+    pipeline_fetch2dec #(.DATA_WIDTH(DATA_WIDTH))
                     pfd(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_fetch_flush),
@@ -274,9 +274,7 @@ module mips_cpu #(
                         .bubble_in(imem_data_valid),
                         .bubble_out(dec_bubble));
                             
-    decoder #(.DATA_WIDTH(DATA_WIDTH),
-              .ADDR_WIDTH(ADDR_WIDTH),
-              .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    decoder #(.DATA_WIDTH(DATA_WIDTH))
                 decode(.stall(pipe_decode_stall),
                         .pc(dec_pc),
                         .raw_inst(dec_raw_inst),
@@ -301,7 +299,6 @@ module mips_cpu #(
                           
 
     register_file #(.DATA_WIDTH(DATA_WIDTH),
-                       .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
                        .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
                     regfile(.clk(clk),
                             .rst_n(rst_n),
@@ -327,8 +324,7 @@ module mips_cpu #(
                             
                             .stall_out(regfile_stall));
 
-    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH),
-                      .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    forwarding_unit #(.DATA_WIDTH(DATA_WIDTH))
                 forward(.dec_rs_enable(dec_rs_enable),
                         .dec_prs_addr(dec_prs_addr),
                         .dec_rs_data(dec_rs_data),
@@ -353,8 +349,6 @@ module mips_cpu #(
                         .dec_rt_override(forwarded_rt_data));
 
     pipeline_dec2exec #(.DATA_WIDTH(DATA_WIDTH),
-                        .ADDR_WIDTH(ADDR_WIDTH),
-                        .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
                         .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
                     pde(.clk(clk),
                         .rst_n(rst_n),
@@ -390,7 +384,7 @@ module mips_cpu #(
                         .trap_out(exec_trap),
                         .illegal_in(dec_illegal),
                         .illegal_out(exec_illegal),
-                        .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data[`ADDR_BUS] : dec_branch_target),
+                        .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data : dec_branch_target),
                         .branch_target_out(exec_branch_target),
                         .virtual_write_addr_in(dec_virtual_write_addr),
                         .virtual_write_addr_out(exec_virtual_write_addr),
@@ -399,9 +393,7 @@ module mips_cpu #(
                         .active_list_index_in(dec_active_list_index),
                         .active_list_index_out(exec_active_list_index));
     
-    execution #(.DATA_WIDTH(DATA_WIDTH),
-                .ADDR_WIDTH(ADDR_WIDTH),
-                .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    execution #(.DATA_WIDTH(DATA_WIDTH))
                 exe(.clk(clk),
                     .rst_n(rst_n),
                     
@@ -433,9 +425,7 @@ module mips_cpu #(
                     .take_branch(exec_take_branch),
                     .take_trap(exec_take_trap));
 
-    pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH),
-                        .ADDR_WIDTH(ADDR_WIDTH),
-                        .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH))
                     pem(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_exec_flush),
@@ -487,9 +477,7 @@ module mips_cpu #(
         end
     end
 
-    memory_access #(.DATA_WIDTH(DATA_WIDTH),
-                    .ADDR_WIDTH(ADDR_WIDTH),
-                    .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    memory_access #(.DATA_WIDTH(DATA_WIDTH))
                     mem(.clk(clk),
                         .rst_n(rst_n),
 
@@ -504,7 +492,10 @@ module mips_cpu #(
                         .force_disable_mem(force_disable_mem)
                     );
 
-    bram_controller ram(.clk(clk),
+    bram_controller #(.DATA_WIDTH(DATA_WIDTH),
+                      .BRAM_ADDR_WIDTH(BRAM_ADDR_WIDTH),
+                      .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH))
+                    ram(.clk(clk),
                         .rst_n(rst_n),
 
                         .addr(ram_addr),
@@ -532,7 +523,6 @@ module mips_cpu #(
     
     
     data_cache #(.DATA_WIDTH(DATA_WIDTH),
-                 .ADDR_WIDTH(ADDR_WIDTH),
                  .ASSO_WIDTH(ASSO_WIDTH),
                  .BLOCK_OFFSET_WIDTH(BLOCK_OFFSET_WIDTH),
                  .INDEX_WIDTH(INDEX_WIDTH),
@@ -540,7 +530,7 @@ module mips_cpu #(
                 dcache(.clk(clk),
                        .rst_n(rst_n),
                        
-                       .addr(dmem_res[DATA_WIDTH-1:2]),
+                       .addr(dmem_res),
                        .enable(dmem_mem_enable),
                        .rw(dmem_mem_rw),
 
@@ -564,8 +554,7 @@ module mips_cpu #(
                        
                        .mem_last(memctrl_dmem_last));
 
-    memory_controller #(.DATA_WIDTH(DATA_WIDTH),
-                        .ADDR_WIDTH(ADDR_WIDTH))
+    memory_controller #(.DATA_WIDTH(DATA_WIDTH))
                     memctrl(.clk(clk),
                             .rst_n(rst_n),
                             .force_disable(force_disable_mem),
@@ -620,8 +609,7 @@ module mips_cpu #(
                             .mem_last(ram_last)
                     );
 
-    pipeline_mem2wb #(.DATA_WIDTH(DATA_WIDTH),
-                      .ADDR_WIDTH(ADDR_WIDTH))
+    pipeline_mem2wb #(.DATA_WIDTH(DATA_WIDTH))
                     pmw(.clk(clk),
                         .rst_n(rst_n),
                         .flush(pipe_wb_flush),
@@ -645,8 +633,7 @@ module mips_cpu #(
                         .cp0_write_in(dmem_cp0_write),
                         .cp0_write_out(wb_cp0_write));
 
-    coprocessor0 #(.DATA_WIDTH(DATA_WIDTH),
-                   .ADDR_WIDTH(ADDR_WIDTH))
+    coprocessor0 #(.DATA_WIDTH(DATA_WIDTH))
                 cp0(.clk(clk),
                     .rst_n(rst_n),
                     
@@ -666,9 +653,7 @@ module mips_cpu #(
                     
                     .timer_interrupt(cp0_timer_interrupt));
     
-    pipeline #(.DATA_WIDTH(DATA_WIDTH),
-               .ADDR_WIDTH(ADDR_WIDTH),
-               .REG_ADDR_WIDTH(REG_ADDR_WIDTH))
+    pipeline #(.DATA_WIDTH(DATA_WIDTH))
                 ppl(.clk(clk),
                     .rst_n(rst_n),
                     

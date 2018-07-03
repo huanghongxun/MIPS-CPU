@@ -17,6 +17,9 @@
 //
 //   BRAM controller allows reading or writing a block of data per operation.
 //   This can make instruction cache and data cache more easier to be implemented.
+//
+//   I must figure out that 2-bit LSB of input port addr are ignored becuase one
+//   word is the minimal data unit.
 // 
 // Dependencies: None
 // 
@@ -30,14 +33,14 @@
 
 module bram_controller#(
 	parameter DATA_WIDTH = 32,
-	parameter ADDR_WIDTH = 16,
+	parameter BRAM_ADDR_WIDTH = 16,
 
     parameter BLOCK_OFFSET_WIDTH = 5
 )(
     input clk,
     input rst_n,
     
-    input [`ADDR_BUS] addr,
+    input [`DATA_BUS] addr,
     input enable, // 1 to start an operation, 0 to keep disabled
     input rw, // 1 to write, 0 to read
     
@@ -55,7 +58,7 @@ module bram_controller#(
     // BRAM interface
     output reg ena = 0,
     output reg wea = 0,
-    output reg [`ADDR_BUS] addra,
+    output reg [`BRAM_ADDR_BUS] addra,
     output reg [`DATA_BUS] dina,
     input [`DATA_BUS] douta
     );
@@ -125,7 +128,7 @@ module bram_controller#(
                             cnt <= 0;
                             ena <= 1;
                             wea <= `MEM_WRITE;
-                            addra <= addr;
+                            addra <= addr[`BRAM_ADDR_RANGE];
                             // We write data in advance since
                             // writing memory is operated next clock period
                             dina <= data_write;
@@ -140,7 +143,7 @@ module bram_controller#(
                             cnt <= 0;
                             ena <= 1;
                             wea <= `MEM_READ;
-                            addra <= addr;
+                            addra <= addr[`BRAM_ADDR_RANGE];
                             
                             // bram generator requires 3 clock period to extract data.
                             wait_for(STATE_READ, 3, `TRUE);
@@ -153,7 +156,7 @@ module bram_controller#(
                 STATE_READ: begin
                     data_read_valid <= 1;
                     data_read <= douta;
-                    addra <= addra + 1;
+                    addra <= addra + 4;
                     cnt <= cnt + 1;
                     if (op_size == OP_SIZE_USER && finishes_op)
                     begin
@@ -199,7 +202,7 @@ module bram_controller#(
                     data_read <= douta;
                     if (increasing_addr_delay)
                     begin
-                        addra <= addra + 1;
+                        addra <= addra + 4;
                         cnt <= cnt + 1;
                     end
                     if (delay_cnt == 0)

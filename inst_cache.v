@@ -11,9 +11,9 @@
 // Tool Versions: Vivado 2018.1
 // Description: 
 //
-//   physical address(width 16, 1 word per addr):
-//   [group index | block index | block offset]
-//         8             3             5
+//   physical address(width 32):
+//   [group index | block index | block offset | 00]
+//         22            3             5         2
 //
 //   2KB instruction cache
 // 
@@ -29,18 +29,18 @@
 
 module inst_cache#(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16, // main memory address width
+    parameter DATA_PER_BYTE_WIDTH = 2, // $clog2(DATA_WIDTH/8)
 
     parameter ASSO_WIDTH = 1, // for n-way associative caching
     parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
     parameter INDEX_WIDTH = 3,
-    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
+    parameter TAG_WIDTH = DATA_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH - DATA_PER_BYTE_WIDTH // Upper 22 bits of the physical address (the tag) are compared to the 22 bit tag field at that cache entry.
 )(
     input clk,
     input rst_n,
 
     // request
-    input [`ADDR_BUS] addr,
+    input [`DATA_BUS] addr, // lowest 2 bits are assumed 2'b00.
     input enable, // 1 if we are requesting data
     
     // outputs
@@ -49,7 +49,7 @@ module inst_cache#(
     output reg data_valid,
 
     // BRAM transaction
-    output reg [`ADDR_BUS] mem_addr,
+    output reg [`DATA_BUS] mem_addr,
     output reg mem_enable,
 
     input [`DATA_BUS] mem_read,
@@ -73,10 +73,10 @@ module inst_cache#(
     reg [1:0] state;
     reg [1:0] next_state;
 
-    // physical memory address parsing
-    wire [TAG_WIDTH         -1:0] tag  = addr[ADDR_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
-    wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH-1:BLOCK_OFFSET_WIDTH];
-    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH-1:0];
+    // physical memory address parsing.
+    wire [TAG_WIDTH         -1:0] tag  = addr[DATA_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
+    wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
+    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-2:DATA_PER_BYTE_WIDTH];
     reg  [ASSO_WIDTH        -1:0] location;
 
     // registers to save operands of synchronization
@@ -161,9 +161,9 @@ module inst_cache#(
                 // start requesting data operation
                 mem_enable <= 1;
 
-                // We must figure out that BRAM address format is equal to l1cache here
-                // if your BRAM data width is 8-bit(a byte), you should append 2'b00 to LSB.
-                mem_addr <= {tag_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}};
+                // We must figure out that BRAM address format is equal to cache here
+                // if your BRAM data width is 8-bit(a byte), you should append 2'b00 to LSB as 1 word consits of 4 bytes.
+                mem_addr <= {tag_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
 
                 if (mem_read_valid)
                 begin

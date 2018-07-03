@@ -28,31 +28,31 @@
 
 module data_cache#(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16, // main memory address width(per byte)
+    parameter DATA_PER_BYTE_WIDTH = 2, // $clog2(DATA_WIDTH/8)
 
     parameter ASSO_WIDTH = 1, // for n-way associative caching
     parameter BLOCK_OFFSET_WIDTH = 5, // width of address of a block
     parameter INDEX_WIDTH = 3,
-    parameter TAG_WIDTH = ADDR_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH // Upper 13 bits of the physical address (the tag) are compared to the 13 bit tag field at that cache entry.
+    parameter TAG_WIDTH = DATA_WIDTH - INDEX_WIDTH - BLOCK_OFFSET_WIDTH - DATA_PER_BYTE_WIDTH // Upper 22 bits of the physical address (the tag) are compared to the 22 bit tag field at that cache entry.
 )(
     input clk,
     input rst_n,
 
     // request
-    input [`ADDR_BUS] addr,
+    input [`DATA_BUS] addr,
     input enable, // 1 if we are requesting data
     input rw,
 
     input [`DATA_BUS] write,
-    input [3:0] mem_sel,
+    input [2**DATA_PER_BYTE_WIDTH-1:0] mem_sel,
 
     output reg [`DATA_BUS] read,
     output reg rw_valid = 0,
 
     output ready,
 
-    // BRAM transaction
-    output reg [`ADDR_BUS] mem_addr,
+    // Memory Controller transaction
+    output reg [`DATA_BUS] mem_addr,
     output reg mem_enable,
     output reg mem_rw,
 
@@ -85,14 +85,14 @@ module data_cache#(
     reg rw_internal;
 
     // physical memory address parsing
-    wire [TAG_WIDTH         -1:0] tag  = addr[ADDR_WIDTH-3:INDEX_WIDTH+BLOCK_OFFSET_WIDTH];
-    wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH-1:BLOCK_OFFSET_WIDTH];
-    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH-1:0];
+    wire [TAG_WIDTH         -1:0] tag  = addr[DATA_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
+    wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
+    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-2:DATA_PER_BYTE_WIDTH];
     reg  [ASSO_WIDTH        -1:0] location;
     
     // registers to save operands of synchronization
     reg                           rw_reg;
-    reg  [ADDR_WIDTH        -1:0] addr_reg;
+    reg  [DATA_WIDTH        -1:0] addr_reg;
     reg  [TAG_WIDTH         -1:0] tag_reg;
     reg  [INDEX_WIDTH       -1:0] block_index_reg;
     reg  [BLOCK_OFFSET_WIDTH-1:0] block_offset_reg;
@@ -137,7 +137,7 @@ module data_cache#(
     end
     
     task write_task;
-        input [`ADDR_BUS] addr;
+        input [`DATA_BUS] addr;
         input [INDEX_WIDTH       -1:0] block_index;
         input [BLOCK_OFFSET_WIDTH-1:0] block_offset;
         input [ASSO_WIDTH        -1:0] location;
@@ -160,7 +160,7 @@ module data_cache#(
     endtask
     
     task read_task;
-        input [`ADDR_BUS] addr;
+        input [`DATA_BUS] addr;
         input [`DATA_BUS] data;
         
         begin
@@ -242,7 +242,7 @@ module data_cache#(
                             cnt <= 0;
                             state <= STATE_POPULATE;
                             mem_rw <= `MEM_READ;
-                            mem_addr <= {tag, block_index, {BLOCK_OFFSET_WIDTH{1'b0}}};
+                            mem_addr <= {tag, block_index, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
                             
 `ifdef DEBUG_DATA
                             $display("Data cache miss on addr %x", addr);
@@ -254,7 +254,7 @@ module data_cache#(
                             cnt <= 0;
                             state <= STATE_WRITEOUT;
                             mem_rw <= `MEM_WRITE;
-                            mem_addr <= {tags[block_index][location], block_index, {BLOCK_OFFSET_WIDTH{1'b0}}};
+                            mem_addr <= {tags[block_index][location], block_index, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
                             
  `ifdef DEBUG_DATA
                             $display("Data cache miss on addr %x", addr);
@@ -280,7 +280,7 @@ module data_cache#(
                             state <= STATE_POPULATE;
                             mem_enable <= `TRUE;
                             mem_rw <= `MEM_READ;
-                            mem_addr <= {tag_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}};
+                            mem_addr <= {tag_reg, block_index_reg, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
                             dirty[block_index_reg][location_reg] <= `FALSE;
                             mem_write <= 'bx;
                         end

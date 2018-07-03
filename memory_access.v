@@ -20,18 +20,14 @@
 
 `include "defines.v"
 
-module memory_access#(
-	parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16,
-    parameter REG_ADDR_WIDTH = 5
-)(
+module memory_access#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
 
     // current values of special purpose registers in coprocessor 0.
     input [`DATA_BUS] cp0_status,
     input [`DATA_BUS] cp0_cause,
-    input [`ADDR_BUS] cp0_epc,
+    input [`DATA_BUS] cp0_epc,
 
     input wb_wb_cp0,
     input [`CP0_REG_BUS] wb_cp0_write_addr,
@@ -96,8 +92,7 @@ module memory_access#(
         end
     end
 
-    exception_handler #(.DATA_WIDTH(DATA_WIDTH),
-                        .ADDR_WIDTH(ADDR_WIDTH))
+    exception_handler #(.DATA_WIDTH(DATA_WIDTH))
                     except(
                         .clk(clk),
                         .rst_n(rst_n),

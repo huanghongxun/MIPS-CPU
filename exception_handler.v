@@ -22,22 +22,21 @@
 `include "defines.v"
 
 module exception_handler#(
-	parameter DATA_WIDTH = 32,
-	parameter ADDR_WIDTH = 16
+	parameter DATA_WIDTH = 32
 )(
     input clk,
     input rst_n,
 
     input [`DATA_BUS] cp0_status,
     input [`DATA_BUS] cp0_cause,
-    input [`ADDR_BUS] cp0_epc,
+    input [`DATA_BUS] cp0_epc,
 
     input wb_wb_cp0,
     input [`CP0_REG_BUS] wb_cp0_write_addr,
     input [`DATA_BUS] wb_cp0_write,
 
     input [`EXCEPT_MASK_BUS] exception_mask,
-    input [`ADDR_BUS] pc,
+    input [`DATA_BUS] pc,
     output reg [`DATA_BUS] exception,
 
     output force_disable_mem

@@ -87,10 +87,14 @@
  *      Bus      *
  *               *
  *****************/
+
 `define DATA_BUS DATA_WIDTH-1:0
+`define BRAM_ADDR_BUS BRAM_ADDR_WIDTH-1:0
+`define BRAM_ADDR_RANGE BRAM_ADDR_WIDTH+1:2
 `define ADDR_BUS DATA_WIDTH-3:0 // We partition memory into dozens of words, but address locates data by byte.
-`define VREG_BUS REG_ADDR_WIDTH-1:0
-`define PREG_BUS REG_ADDR_WIDTH:0
+`define VREG_BUS 4:0
+`define PREG_BUS 5:0
+`define REG_SIZE 32
 
 /******************
  *                *

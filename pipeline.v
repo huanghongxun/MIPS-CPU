@@ -23,11 +23,7 @@
 
 `include "defines.v"
 
-module pipeline#(
-    parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5
-    )(
+module pipeline#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
 
@@ -52,7 +48,7 @@ module pipeline#(
     input exec_mem_enable,
     input exec_wb_reg,
     input exec_take_branch,
-    input [`ADDR_BUS] exec_branch_target,
+    input [`DATA_BUS] exec_branch_target,
 
     // memory access
     input mem_done,
@@ -86,16 +82,16 @@ module pipeline#(
 
     // ======= Control Hazards ========
     output reg fetch_branch,
-    output reg [`ADDR_BUS] fetch_branch_target,
+    output reg [`DATA_BUS] fetch_branch_target,
 
     // ======= Exception Handler ========
     
     input [`DATA_BUS] exception,
-    input [`ADDR_BUS] cp0_reg_epc
+    input [`DATA_BUS] cp0_reg_epc
     );
 
     reg fetch_load;
-    reg [`ADDR_BUS] fetch_addr;
+    reg [`DATA_BUS] fetch_addr;
     reg fetch_flush_data;
     reg fetch_flush_control;
     assign fetch_flush = fetch_flush_data || fetch_flush_control;

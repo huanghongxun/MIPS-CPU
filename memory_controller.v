@@ -30,8 +30,7 @@
 `include "defines.v"
 
 module memory_controller#(
-    parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16 // main memory address width
+    parameter DATA_WIDTH = 32
 )(
     input clk,
     input rst_n,
@@ -39,7 +38,7 @@ module memory_controller#(
     input force_disable, // stop writing to RAM
 
     // inst cache
-    input [`ADDR_BUS] imem_addr,
+    input [`DATA_BUS] imem_addr,
     input imem_enable,
 
     output reg [`DATA_BUS] imem_read,
@@ -48,7 +47,7 @@ module memory_controller#(
     output reg imem_last,
 
     // data cache
-    input [`ADDR_BUS] dmem_addr,
+    input [`DATA_BUS] dmem_addr,
     input dmem_enable,
     input dmem_rw,
 
@@ -61,7 +60,7 @@ module memory_controller#(
     output reg dmem_last,
 
     // external storage
-    input [`ADDR_BUS] external_addr,
+    input [`DATA_BUS] external_addr,
     input external_enable,
     input external_rw,
     
@@ -77,7 +76,7 @@ module memory_controller#(
     output reg external_last,
 
     // ram
-    output reg [`ADDR_BUS] mem_addr,
+    output reg [`DATA_BUS] mem_addr,
     output reg mem_enable,
     output reg mem_rw,
     

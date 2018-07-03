@@ -24,10 +24,7 @@
 
 `include "defines.v"
 
-module forwarding_unit#(
-    parameter DATA_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5
-)(
+module forwarding_unit#(parameter DATA_WIDTH = 32)(
     // feedback from decode stage
     input dec_rs_enable,
     input [`VREG_BUS] dec_vrs_addr,

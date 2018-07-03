@@ -22,16 +22,15 @@
 `include "defines.v"
 
 module coprocessor0#(
-	parameter DATA_WIDTH = 32,
-	parameter ADDR_WIDTH = 16
+	parameter DATA_WIDTH = 32
 )(
     input clk,
     input rst_n,
 
     input reg_we,
-    input [4:0] reg_read_addr,
+    input [`CP0_REG_BUS] reg_read_addr,
     output reg [`DATA_BUS] reg_read,
-    input [4:0] reg_write_addr,
+    input [`CP0_REG_BUS] reg_write_addr,
     input [`DATA_BUS] reg_write,
 
     input [5:0] hardware_int,
@@ -40,15 +39,15 @@ module coprocessor0#(
     input pipe_exec_stall,
 
     input [`DATA_BUS] exception,
-    input [`ADDR_BUS] pc,
+    input [`DATA_BUS] pc,
 
     output [`DATA_BUS] count,
     output [`DATA_BUS] compare,
-    output [31:0] status,
-    output [31:0] cause,
-    output [`ADDR_BUS] epc,
-    output [31:0] prid,
-    output [31:0] cfg,
+    output [`DATA_BUS] status,
+    output [`DATA_BUS] cause,
+    output [`DATA_BUS] epc,
+    output [`DATA_BUS] prid,
+    output [`DATA_BUS] cfg,
 
     output reg timer_interrupt
 );
@@ -82,7 +81,7 @@ module coprocessor0#(
 
     assign cause = {cause_bd, {7{1'b0}}, cause_iv, cause_wp, {6{1'b0}}, cause_hardware_ip, cause_software_ip, 1'b0, cause_exc_code, 2'b00};
 
-    reg [`ADDR_BUS] epc; // r14
+    reg [`DATA_BUS] epc; // r14
 
     // r15
     assign prid = 32'b00000000_00000000_0000000000_000000;

@@ -40,15 +40,14 @@ module main_top(
     );
     
     localparam DATA_WIDTH = 32;
-    localparam ADDR_WIDTH = 16;
-    localparam REG_ADDR_WIDTH = 5;
+    localparam BRAM_ADDR_WIDTH = 16;
     localparam FREE_LIST_WIDTH = 3;
 
     wire rst_n = sw[15];
     
     wire bram_ena;
     wire bram_wea;
-    wire [`ADDR_BUS] bram_addra;
+    wire [`BRAM_ADDR_BUS] bram_addra;
     wire [`DATA_BUS] bram_dina;
     wire [`DATA_BUS] bram_douta;
     
@@ -65,8 +64,7 @@ module main_top(
                               .douta(bram_douta));
     */
     mips_cpu #(.DATA_WIDTH(DATA_WIDTH),
-               .ADDR_WIDTH(ADDR_WIDTH),
-               .REG_ADDR_WIDTH(REG_ADDR_WIDTH),
+               .BRAM_ADDR_WIDTH(BRAM_ADDR_WIDTH),
                .FREE_LIST_WIDTH(FREE_LIST_WIDTH))
         uut(.clk(clk),
             .rst_n(rst_n),

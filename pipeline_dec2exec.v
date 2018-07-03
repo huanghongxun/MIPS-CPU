@@ -23,8 +23,6 @@
 
 module pipeline_dec2exec #(
     parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 32,
-    parameter REG_ADDR_WIDTH = 5,
     parameter FREE_LIST_WIDTH = 3
 )(
     input clk,
@@ -33,8 +31,8 @@ module pipeline_dec2exec #(
     input global_flush,
     input stall,
     
-    input      [`ADDR_BUS] pc_in,
-    output reg [`ADDR_BUS] pc_out,
+    input      [`DATA_BUS] pc_in,
+    output reg [`DATA_BUS] pc_out,
     input      [`DATA_BUS] raw_inst_in,
     output reg [`DATA_BUS] raw_inst_out,
     input      [`INST_BUS] inst_in,
@@ -63,8 +61,8 @@ module pipeline_dec2exec #(
     output reg             trap_out,
     input                  illegal_in,
     output reg             illegal_out,
-    input      [`ADDR_BUS] branch_target_in,
-    output reg [`ADDR_BUS] branch_target_out,
+    input      [`DATA_BUS] branch_target_in,
+    output reg [`DATA_BUS] branch_target_out,
     input      [`VREG_BUS] virtual_write_addr_in,
     output reg [`VREG_BUS] virtual_write_addr_out,
     input      [`PREG_BUS] physical_write_addr_in,

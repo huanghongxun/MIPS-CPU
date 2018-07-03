@@ -21,11 +21,7 @@
 
 `include "defines.v"
 
-module move#(
-	parameter DATA_WIDTH = 32,
-    parameter ADDR_WIDTH = 16,
-    parameter REG_ADDR_WIDTH = 5
-)(
+module move#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
 

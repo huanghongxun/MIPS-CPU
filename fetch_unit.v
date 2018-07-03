@@ -21,17 +21,14 @@
 
 `include "defines.v"
 
-module fetch_unit #(
-    parameter ADDR_WIDTH = 16,
-    parameter DATA_WIDTH = 32
-)(
+module fetch_unit #(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
     input stall,
     
     input rw,
-    input [`ADDR_BUS] write,
-    output reg [`ADDR_BUS] pc
+    input [`DATA_BUS] write,
+    output reg [`DATA_BUS] pc
     );
 
     always @(posedge clk, negedge rst_n)
