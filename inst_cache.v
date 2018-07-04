@@ -76,7 +76,7 @@ module inst_cache#(
     // physical memory address parsing.
     wire [TAG_WIDTH         -1:0] tag  = addr[DATA_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
     wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
-    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-2:DATA_PER_BYTE_WIDTH];
+    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:DATA_PER_BYTE_WIDTH];
     reg  [ASSO_WIDTH        -1:0] location;
 
     // registers to save operands of synchronization

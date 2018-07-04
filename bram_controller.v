@@ -156,7 +156,7 @@ module bram_controller#(
                 STATE_READ: begin
                     data_read_valid <= 1;
                     data_read <= douta;
-                    addra <= addra + 4;
+                    addra <= addra + 1;
                     cnt <= cnt + 1;
                     if (op_size == OP_SIZE_USER && finishes_op)
                     begin
@@ -202,7 +202,7 @@ module bram_controller#(
                     data_read <= douta;
                     if (increasing_addr_delay)
                     begin
-                        addra <= addra + 4;
+                        addra <= addra + 1;
                         cnt <= cnt + 1;
                     end
                     if (delay_cnt == 0)

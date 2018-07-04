@@ -408,17 +408,17 @@ module decoder #(parameter DATA_WIDTH = 32)(
                 endcase
             end
             6'b000010: begin // j
-                `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_J, `ALU_OP_ADDU, 0, ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00}), `EX_ALU, `B_REG, `WB_ALU);
+                `decode(0, `RS_DIS, 0, `RT_DIS, 0, `REG_N, `INST_J, `ALU_OP_ADDU, 0, ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00 }), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: j, dest: %x", pc, { pc[DATA_WIDTH-1:28], addr_wire, 2'b00});
+                    $display("%x: j, dest: %x", pc, { pc[DATA_WIDTH-1:28], addr_wire, 2'b00 });
 `endif
             end
             6'b000011: begin // jal
-                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `REG_WB, `INST_JAL, `ALU_OP_ADDU, (pc + 8), ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00}), `EX_ALU, `B_IMM, `WB_ALU);
+                `decode(0, `RS_DIS, 0, `RT_DIS, 31, `REG_WB, `INST_JAL, `ALU_OP_ADDU, (pc + 8), ({ pc[DATA_WIDTH-1:28], addr_wire, 2'b00 }), `EX_ALU, `B_IMM, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 8), { pc[DATA_WIDTH-1:28], addr_wire, 2'b00});
+                    $display("%x: jal, gpr[31]: %x, dest: %h", pc, (pc + 8), { pc[DATA_WIDTH-1:28], addr_wire, 2'b00 });
 `endif
             end
             6'b000100: begin // beq
@@ -439,7 +439,7 @@ module decoder #(parameter DATA_WIDTH = 32)(
                 `decode(rs_wire, `RS_EN, 0, `RT_DIS, 0, `REG_N, `INST_BLEZ, `ALU_OP_LE, 0, (pc + 4 + 4 * $signed(imm_wire)), `EX_ALU, `B_REG, `WB_ALU);
 `ifdef DEBUG_DEC
                 if (!stall)
-                    $display("%x: blez, rs: %d, rt: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
+                    $display("%x: blez, rs: %d, offset: %x, dest: %x", pc, rs_wire, $signed(imm_wire), (pc + 4 + 4 * $signed(imm_wire)));
 `endif
             end
             6'b000111: begin // bgtz

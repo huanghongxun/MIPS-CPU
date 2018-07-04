@@ -58,7 +58,7 @@ module pipeline_dec2exec #(
     input                  trap_in,
     output reg             trap_out,
     input                  illegal_in,
-    output reg             illegal_out,
+    output reg [`EXCEPT_MASK_BUS] exception_mask,
     input      [`DATA_BUS] branch_target_in,
     output reg [`DATA_BUS] branch_target_out,
     input      [`VREG_BUS] virtual_write_addr_in,
@@ -68,12 +68,15 @@ module pipeline_dec2exec #(
     input      [FREE_LIST_WIDTH-1:0] active_list_index_in,
     output reg [FREE_LIST_WIDTH-1:0] active_list_index_out
     );
+    
+    reg [`EXCEPT_MASK_BUS] exception_mask_reg;
 
     always @(posedge clk, negedge rst_n)
     begin
         if (!rst_n)
         begin
             pc_out <= 0;
+            raw_inst_out <= 0;
             inst_out <= 0;
             alu_op_out <= 0;
             exec_src_out <= 0;
@@ -86,11 +89,11 @@ module pipeline_dec2exec #(
             wb_reg_out <= 0;
             branch_out <= 0;
             trap_out <= 0;
-            illegal_out <= 0;
             branch_target_out <= 0;
             virtual_write_addr_out <= 0;
             physical_write_addr_out <= 0;
             active_list_index_out <= 0;
+            exception_mask <= 0;
         end
         else
         begin
@@ -99,6 +102,7 @@ module pipeline_dec2exec #(
                 if (flush || global_flush)
                 begin
                     pc_out <= 0;
+                    raw_inst_out <= 0;
                     inst_out <= 0;
                     alu_op_out <= 0;
                     exec_src_out <= 0;
@@ -111,15 +115,16 @@ module pipeline_dec2exec #(
                     wb_reg_out <= 0;
                     branch_out <= 0;
                     trap_out <= 0;
-                    illegal_out <= 0;
                     branch_target_out <= 0;
                     virtual_write_addr_out <= 0;
                     physical_write_addr_out <= 0;
                     active_list_index_out <= 0;
+                    exception_mask <= 0;
                 end
                 else
                 begin
                     pc_out <= pc_in;
+                    raw_inst_out <= raw_inst_in;
                     inst_out <= inst_in;
                     alu_op_out <= alu_op_in;
                     exec_src_out <= exec_src_in;
@@ -132,13 +137,22 @@ module pipeline_dec2exec #(
                     wb_reg_out <= wb_reg_in;
                     branch_out <= branch_in;
                     trap_out <= trap_in;
-                    illegal_out <= illegal_in;
                     branch_target_out <= branch_target_in;
                     virtual_write_addr_out <= virtual_write_addr_in;
                     physical_write_addr_out <= physical_write_addr_in;
                     active_list_index_out <= active_list_index_in;
+                    exception_mask <= exception_mask_reg;
                 end
             end
         end
+    end
+    
+    always @*
+    begin
+        exception_mask_reg = 0;
+        if (illegal_in)
+            exception_mask_reg = exception_mask_reg | (1 << `EXCEPT_ILLEGAL);
+        if (inst_in == `INST_SYSCALL)
+            exception_mask_reg = exception_mask_reg | (1 << `EXCEPT_SYSCALL);
     end
 endmodule

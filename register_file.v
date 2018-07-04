@@ -85,7 +85,8 @@ module register_file#(
 
     wire write_enabled = dec_rw == `MEM_WRITE && (virtual_rd_addr != 0) && !stall_in;
 
-    assign {old_preg_addr, done} = active_list[active_list_head];
+    assign old_preg_addr = active_list[active_list_head];
+    assign done = active_done[active_list_head];
 
     always @(posedge clk, negedge rst_n)
     begin
@@ -117,7 +118,7 @@ module register_file#(
             if (wb_write_enable && (wb_physical_write_addr != 0))
             begin
                 preg[wb_physical_write_addr] <= wb_physical_write_data;
-                active_done[active_list_index] <= 1;
+                active_done[wb_active_list_index] <= 1;
             end
 
             // if instruction writes to reg, allocate a register
@@ -138,7 +139,7 @@ module register_file#(
                     free_list_head <= free_list_head + 1;
                     active_list_tail <= active_list_tail + 1;
                     active_list[active_list_tail] <= map_table[virtual_rd_addr];
-                    active_list[active_list_tail] <= 0;
+                    active_done[active_list_tail] <= 0;
                     map_table[virtual_rd_addr] <= free_list[free_list_head];
                     free_list_size <= free_list_size - 1;
                 end

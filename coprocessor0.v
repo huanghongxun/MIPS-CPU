@@ -38,20 +38,16 @@ module coprocessor0#(
     input [`DATA_BUS] exception,
     input [`DATA_BUS] pc,
 
-    output [`DATA_BUS] count,
-    output [`DATA_BUS] compare,
+    output reg [`DATA_BUS] count, // r9
+    output reg [`DATA_BUS] compare, // r11
     output [`DATA_BUS] status,
     output [`DATA_BUS] cause,
-    output [`DATA_BUS] epc,
+    output reg [`DATA_BUS] epc, // r14
     output [`DATA_BUS] prid,
     output [`DATA_BUS] cfg,
 
     output reg timer_interrupt
 );
-
-    reg [`DATA_BUS] count; // r9
-
-    reg [`DATA_BUS] compare; // r11
 
     // r12
     wire [3:0] status_cu = 4'b0001; // status[31:28], coprocessor usability
@@ -77,8 +73,6 @@ module coprocessor0#(
     reg [4:0] cause_exc_code;
 
     assign cause = {cause_bd, {7{1'b0}}, cause_iv, cause_wp, {6{1'b0}}, cause_hardware_ip, cause_software_ip, 1'b0, cause_exc_code, 2'b00};
-
-    reg [`DATA_BUS] epc; // r14
 
     // r15
     assign prid = 32'b00000000_00000000_0000000000_000000;

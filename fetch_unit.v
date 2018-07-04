@@ -47,7 +47,7 @@ module fetch_unit #(parameter DATA_WIDTH = 32)(
                 end
                 else
                 begin
-                    pc <= pc + 1;
+                    pc <= pc + 4;
                 end
             end
         end

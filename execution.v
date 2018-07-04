@@ -36,6 +36,7 @@ module execution#(parameter DATA_WIDTH = 32)(
 
     input branch,
     input trap,
+    input [`EXCEPT_MASK_BUS] dec_exception_mask,
 
     // Interaction with coprocessor 0
 
@@ -52,17 +53,21 @@ module execution#(parameter DATA_WIDTH = 32)(
     input wb_wb_cp0,
     input [`CP0_REG_BUS] wb_cp0_write_addr,
     input [`DATA_BUS] wb_cp0_write,
+    
+    // Output ports
 
     output reg [`DATA_BUS] res,
     output take_branch,
-    output take_trap
+    output take_trap,
+    output [`EXCEPT_MASK_BUS] exception_mask
 );
     wire [`DATA_BUS] alu_rd, move_res;
     reg [`DATA_BUS] cp0_reg_override;
 
     assign take_branch = exec_src == `EX_ALU && branch && alu_rd;
     assign take_trap = exec_src == `EX_ALU && trap && alu_rd;
-    wire [1:0] exec_test_state;
+    
+    assign exception_mask = take_trap ? dec_exception_mask | (1 << `EXCEPT_TRAP) : dec_exception_mask;
 
     // Determine what data we are going to write back.
     always @*
@@ -73,6 +78,18 @@ module execution#(parameter DATA_WIDTH = 32)(
             `EX_MOV: res <= move_res;
             default: res <= 0;
         endcase
+    end
+    
+    always @*
+    begin
+        case (inst)
+            `INST_TEST_DONE:
+                $display("Test done");
+            `INST_TEST_PASS:
+                $display("Test pass");
+            `INST_TEST_FAIL:
+                $display("Test fail");
+        endcase    
     end
 
     // ==== Data forwarding ===

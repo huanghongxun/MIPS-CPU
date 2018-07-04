@@ -102,6 +102,7 @@ module mips_cpu #(
     wire dec_branch, dec_trap, dec_illegal;
     wire [1:0] dec_jump;
     wire [`DATA_BUS] dec_branch_target;
+    wire [`EXCEPT_MASK_BUS] dec_exception_mask;
     
     wire regfile_stall;
 
@@ -116,7 +117,7 @@ module mips_cpu #(
     wire [1:0] exec_exec_src;
     wire exec_wb_src;
     wire exec_wb_reg;
-    wire exec_branch, exec_trap, exec_illegal;
+    wire exec_branch, exec_trap;
     wire [`DATA_BUS] exec_branch_target;
     
     wire [`VREG_BUS] exec_virtual_write_addr;
@@ -145,6 +146,7 @@ module mips_cpu #(
     wire exec_take_branch;
     wire exec_take_trap;
     wire [1:0] exec_test_state;
+    wire [`EXCEPT_MASK_BUS] exec_exception_mask;
 
     // exec2mem
 
@@ -165,6 +167,8 @@ module mips_cpu #(
     wire dmem_branch;
     wire dmem_mem_rw_valid;
     reg dmem_done;
+    
+    wire [`DATA_BUS] dmem_pc;
 
     wire force_disable_mem;
 
@@ -175,6 +179,8 @@ module mips_cpu #(
     wire [`VREG_BUS] dmem_virtual_write_addr;
     wire [`PREG_BUS] dmem_physical_write_addr;
     wire [FREE_LIST_WIDTH-1:0] dmem_active_list_index;
+    wire [`EXCEPT_MASK_BUS] dmem_exception_mask;
+    wire [`DATA_BUS] dmem_exception;
     
     // mem2wb
     
@@ -384,7 +390,7 @@ module mips_cpu #(
         .trap_in(dec_trap),
         .trap_out(exec_trap),
         .illegal_in(dec_illegal),
-        .illegal_out(exec_illegal),
+        .exception_mask(dec_exception_mask),
         .branch_target_in(dec_jump == `JUMP_REG ? forwarded_rs_data : dec_branch_target),
         .branch_target_out(exec_branch_target),
         .virtual_write_addr_in(dec_virtual_write_addr),
@@ -409,6 +415,7 @@ module mips_cpu #(
 
         .branch(exec_branch),
         .trap(exec_trap),
+        .dec_exception_mask(dec_exception_mask),
 
         .cp0_reg_rw(exec_wb_cp0),
         .cp0_reg_read_addr(cp0_reg_read_addr),
@@ -426,7 +433,8 @@ module mips_cpu #(
         
         .res(exec_res),
         .take_branch(exec_take_branch),
-        .take_trap(exec_take_trap)
+        .take_trap(exec_take_trap),
+        .exception_mask(exec_exception_mask)
     );
 
     pipeline_exec2mem #(.DATA_WIDTH(DATA_WIDTH)) pem(
@@ -436,6 +444,8 @@ module mips_cpu #(
         .global_flush(pipe_global_flush),
         .stall(pipe_mem_stall),
         
+        .pc_in(exec_pc),
+        .pc_out(dmem_pc),
         .raw_inst_in(exec_raw_inst),
         .inst_in(exec_inst),
         .alu_res_in(exec_res),
@@ -465,7 +475,9 @@ module mips_cpu #(
         .cp0_write_addr_in(exec_cp0_write_addr),
         .cp0_write_addr_out(dmem_cp0_write_addr),
         .cp0_write_in(exec_cp0_write),
-        .cp0_write_out(dmem_cp0_write)
+        .cp0_write_out(dmem_cp0_write),
+        .exception_mask_in(exec_exception_mask),
+        .exception_mask_out(dmem_exception_mask)
     );
 
     always @* // select which value should we write back to register file.
@@ -485,6 +497,9 @@ module mips_cpu #(
     memory_access #(.DATA_WIDTH(DATA_WIDTH)) mem(
         .clk(clk),
         .rst_n(rst_n),
+        
+        .pc(dmem_pc),
+        .exception_mask(dmem_exception_mask),
 
         .cp0_status(cp0_status),
         .cp0_cause(cp0_cause),
@@ -498,7 +513,9 @@ module mips_cpu #(
 
         .mem_cp0_status_override(mem_cp0_status),
         .mem_cp0_cause_override(mem_cp0_cause),
-        .mem_cp0_epc_override(mem_cp0_epc)
+        .mem_cp0_epc_override(mem_cp0_epc),
+        
+        .exception(dmem_exception)
     );
     
     data_cache #(.DATA_WIDTH(DATA_WIDTH),
@@ -681,7 +698,7 @@ module mips_cpu #(
         .fetch_branch(fetch_rw),
         .fetch_branch_target(fetch_write),
         
-        .exception(),
-        .mem_cp0_epc(mem_cp0_epc
-    ));
+        .exception(dmem_exception),
+        .mem_cp0_epc(mem_cp0_epc)
+    );
 endmodule

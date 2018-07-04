@@ -274,7 +274,7 @@ module pipeline#(parameter DATA_WIDTH = 32)(
         else
         begin
             global_flush <= 0;
-            if (exception != `EXCEPT_NONE)
+            if (exception != 0)
             begin
                 global_flush <= 1;
                 fetch_load <= 1;

@@ -12,6 +12,7 @@
 `define DEBUG_BRAM
 `define DEBUG_MEMCTRL
 `define DEBUG_REG
+`define DEBUG_EXCEPT
 
 `define DEBUG_MODE
 
@@ -127,7 +128,7 @@
  *   Exceptions   *
  *                *
  ******************/
-`define EXCEPT_MASK_BUS 6:0
+`define EXCEPT_MASK_BUS 13:0
 
 `define EXCEPT_NONE 0
 `define EXCEPT_INTERRUPT 1
@@ -136,6 +137,8 @@
 `define EXCEPT_OVERFLOW 4
 `define EXCEPT_TRAP    5
 `define EXCEPT_ERET    6
+`define EXCEPT_ADDRL   7
+`define EXCEPT_ADDRS   8
  
 `define EXCEPT_INTERRUPT_ADDR 32'h00000020
 `define EXCEPT_SYSCALL_ADDR 32'h00000040
@@ -153,6 +156,7 @@
 `define CODE_RI 10 // Reserved instruction
 `define CODE_OVF 12 // Arithmetic overflow
 `define CODE_TRAP 13 // trap instruction executed
+`define CODE_ERET 14
 
 /**************************
  *                        *
@@ -345,15 +349,15 @@
 `define INST_JR   7'b0101111
 `define INST_JALR 7'b0100111
 
-`define INST_SYSCALL 7'b0101000
-`define INST_ERET 7'b0101001
-
 `define INST_TEQ  7'b0110000
 `define INST_TGE  7'b0110001
 `define INST_TGEU 7'b0110010
 `define INST_TLT  7'b0110011
 `define INST_TLTU 7'b0110100
 `define INST_TNE  7'b0110101
+
+`define INST_SYSCALL 7'b0111100
+`define INST_ERET 7'b0111101
 
 `define INST_MTC0 7'b0111110
 `define INST_MFC0 7'b0111111

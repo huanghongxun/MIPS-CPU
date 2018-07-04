@@ -23,6 +23,9 @@
 module memory_access#(parameter DATA_WIDTH = 32)(
     input clk,
     input rst_n,
+    
+    input [`DATA_BUS] pc,
+    input [`EXCEPT_MASK_BUS] exception_mask,
 
     // current values of special purpose registers in coprocessor 0.
     input [`DATA_BUS] cp0_status,
@@ -37,7 +40,9 @@ module memory_access#(parameter DATA_WIDTH = 32)(
 
     output reg [`DATA_BUS] mem_cp0_status_override,
     output reg [`DATA_BUS] mem_cp0_epc_override,
-    output reg [`DATA_BUS] mem_cp0_cause_override
+    output reg [`DATA_BUS] mem_cp0_cause_override,
+    
+    output [`EXCEPT_MASK_BUS] exception
 );
 
     // ==== Data forwarding ====
@@ -105,9 +110,9 @@ module memory_access#(parameter DATA_WIDTH = 32)(
         .wb_cp0_write_addr(wb_cp0_write_addr),
         .wb_cp0_write(wb_cp0_write),
 
-        .exception_mask(),
-        .pc(),
-        .exception(),
+        .exception_mask(exception_mask),
+        .pc(pc),
+        .exception(exception),
 
         .force_disable_mem(force_disable_mem)
     );

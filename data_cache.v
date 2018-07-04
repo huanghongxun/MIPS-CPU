@@ -87,7 +87,7 @@ module data_cache#(
     // physical memory address parsing
     wire [TAG_WIDTH         -1:0] tag  = addr[DATA_WIDTH-1:INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
     wire [INDEX_WIDTH       -1:0] block_index  = addr[INDEX_WIDTH+BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH];
-    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-2:DATA_PER_BYTE_WIDTH];
+    wire [BLOCK_OFFSET_WIDTH-1:0] block_offset = addr[BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH-1:DATA_PER_BYTE_WIDTH];
     reg  [ASSO_WIDTH        -1:0] location;
     
     // registers to save operands of synchronization
@@ -242,10 +242,10 @@ module data_cache#(
                             cnt <= 0;
                             state <= STATE_POPULATE;
                             mem_rw <= `MEM_READ;
-                            mem_addr <= {tag, block_index, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
+                            mem_addr <= {tag, block_index, {BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH{1'b0}}};
                             
 `ifdef DEBUG_DATA
-                            $display("Data cache miss on addr %x", addr);
+                            $display("Data cache miss on unchanged block %x", addr);
 `endif
                         end
                         // Otherwise we should write back first.
@@ -254,10 +254,10 @@ module data_cache#(
                             cnt <= 0;
                             state <= STATE_WRITEOUT;
                             mem_rw <= `MEM_WRITE;
-                            mem_addr <= {tags[block_index][location], block_index, {BLOCK_OFFSET_WIDTH{1'b0}}, {DATA_PER_BYTE_WIDTH{1'b0}}};
+                            mem_addr <= {tags[block_index][location], block_index, {BLOCK_OFFSET_WIDTH+DATA_PER_BYTE_WIDTH{1'b0}}};
                             
  `ifdef DEBUG_DATA
-                            $display("Data cache miss on addr %x", addr);
+                            $display("Data cache miss on changed block %x", addr);
  `endif
                         end
                     end

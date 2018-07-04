@@ -41,6 +41,9 @@ module arithmetic_logic_unit #(
         if (en)
         begin
             case(op)
+                `ALU_OP_NOP: begin
+                    rd = 0;
+                end
                 `ALU_OP_SLL: begin
                     rd = rs << rt;
 `ifdef DEBUG_ALU
